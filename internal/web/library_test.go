@@ -405,9 +405,8 @@ func TestStarterUsesLibrary(t *testing.T) {
 					t.Errorf("Prime Video: %+v", tile)
 				}
 			case "SoundCloud":
-				// The template's file isn't in the fake library and the fake
-				// site has no icon: no stale reference is kept.
-				if tile.Library != "" || tile.Icon != "" {
+				// The template names the orange Simple Icons file.
+				if tile.Library != "si:soundcloud" || !strings.HasSuffix(tile.Icon, ".svg") {
 					t.Errorf("SoundCloud: %+v", tile)
 				}
 			case "Reddit":

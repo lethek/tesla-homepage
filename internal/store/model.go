@@ -83,7 +83,7 @@ func StarterHomepage() Homepage {
 		),
 		section("Music",
 			Tile{Title: "Spotify", URL: "https://open.spotify.com"},
-			Tile{Title: "SoundCloud", URL: "https://soundcloud.com", Library: "soundcloud-dark"},
+			Tile{Title: "SoundCloud", URL: "https://soundcloud.com", Library: "si:soundcloud"},
 		),
 		section("Everyday",
 			Tile{Title: "Google", URL: "https://www.google.com"},
