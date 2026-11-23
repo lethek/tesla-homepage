@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-23
+
 ### Added
 
 - "Open fullscreen" option on a tile. The tile then links through YouTube's redirect page, which the Tesla browser shows fullscreen.
@@ -39,6 +41,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Per-tile Plate background colour and padding (0 to 30%) for any icon.
 - Container image published to GHCR for amd64 and arm64 by GitHub Actions.
 
-[Unreleased]: https://github.com/lethek/tesla-homepage/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lethek/tesla-homepage/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/lethek/tesla-homepage/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/lethek/tesla-homepage/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lethek/tesla-homepage/releases/tag/v0.1.0
