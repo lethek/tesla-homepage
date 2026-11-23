@@ -119,8 +119,9 @@
       <input type="radio" name="plate" id="plate-custom" value="custom" {{if eq $p "custom"}}checked{{end}}><label for="plate-custom">Custom <input type="color" name="plate_custom" value="{{.PlateCustom}}" aria-label="Custom plate colour"></label>
     </div>
     <p class="hint">A background behind the icon. Useful for logos with transparent backgrounds.</p>
-    <label class="padding">Padding <output>{{.Tile.Padding}}%</output>
+    <label class="padding">Padding
       <input type="range" name="padding" min="0" max="30" step="1" value="{{.Tile.Padding}}">
+      <output>{{.Tile.Padding}}%</output>
     </label>
   </fieldset>
 

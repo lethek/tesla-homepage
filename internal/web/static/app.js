@@ -1,6 +1,12 @@
 (function () {
   "use strict";
 
+  // Escape follows the "Back to homepage" button on pages that have one.
+  document.addEventListener("keydown", function (e) {
+    var back = document.querySelector("a[data-back]");
+    if (e.key === "Escape" && back && !e.defaultPrevented) location.href = back.href;
+  });
+
   // Clock
   var clock = document.querySelector("[data-clock]");
   function tick() {
@@ -65,7 +71,7 @@
       if (!form) return;
       var t = e.target;
       if (t.name === "padding") {
-        t.parentNode.querySelector("output").textContent = t.value + "%";
+        t.nextElementSibling.textContent = t.value + "%";
       } else if (t.name === "plate_custom") {
         form.querySelector("#plate-custom").checked = true;
       } else if (t.name === "q") {

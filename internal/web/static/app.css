@@ -129,6 +129,7 @@ button, .button {
   min-height: var(--touch); padding: 0 18px;
   background: #262626; border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
 }
+.back { text-align: center; }
 a.button { display: inline-flex; align-items: center; text-decoration: none; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 button.danger { color: var(--danger); }
@@ -193,8 +194,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .tabs input:checked + label, .plates > input:checked + label { border-color: var(--accent); background: #2a0f1b; }
 .tabs input:focus-visible + label, .plates > input:focus-visible + label { outline: 2px solid var(--accent); }
 .swatch { width: 20px; height: 20px; border-radius: 6px; border: 1px solid #555; }
-.padding { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; margin-top: 10px; }
-.padding input { min-height: var(--touch); width: 100%; }
+/* One row: label, slider, value. */
+.tile-form label.padding { display: grid; grid-template-columns: auto 1fr 3.5ch; align-items: center; gap: 10px; }
+.tile-form label.padding input { width: 100%; margin: 0; min-height: 32px; }
+.tile-form label.padding output { text-align: right; }
 .plates input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; background: none; }
 .panel { display: none; }
 .tile-form[data-source=keep] .panel-keep,
