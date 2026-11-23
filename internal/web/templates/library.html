@@ -1,44 +1,59 @@
 {{define "body"}}
-<main class="card">
-  <h1>Icon library</h1>
+<main class="card library">
+  <header class="lib-head">
+    <h1>Icon library</h1>
+    <p class="hint">Ready-made icons for Tiles, from the catalogues and from your own uploads. Both are searched together.</p>
+  </header>
   {{template "messages" .}}
-  <p>Tiles can use ready-made icons from the catalogues below. Their lists are downloaded the first time someone searches, then kept until you refresh them here.</p>
   {{with .Form}}
-  {{if .Cached}}
-  <p>Downloaded {{.Fetched.Format "2 January 2006, 15:04 MST"}}.</p>
-  <ul>
-    {{range .Counts}}<li>{{.Source}}: {{.N}} icon{{if ne .N 1}}s{{end}}</li>{{end}}
-  </ul>
-  {{else}}
-  <p>Not downloaded yet.</p>
-  {{end}}
-  {{end}}
-  <form method="post" action="/admin/library/refresh">
-    <button type="submit" class="primary">Refresh now</button>
-  </form>
-  <h2>Custom icons</h2>
-  <p>Your own icons are searched together with the catalogues above. The downloaded catalogues can't be changed here, and refreshing them never touches custom icons.</p>
-  {{with .Form}}
-  <ul class="custom-icons">
-    {{range .Local}}
-    <li>
-      <details>
-        <summary><img src="{{.Preview}}" alt="" width="32" height="32"> {{.Name}}</summary>
-        {{template "custom-form" .}}
-        <form method="post" action="/admin/library/local/{{.Slug}}/delete" onsubmit="return confirm('Delete this custom icon? Tiles that use it keep their copy.')">
-          <button type="submit" class="danger">Delete</button>
+  <div class="lib-layout">
+    <section class="lib-custom">
+      <h2>Custom icons</h2>
+      <p class="hint">Only custom icons can be edited or deleted. Refreshing the catalogues never touches them.</p>
+      <ul class="lib-grid">
+        <li><button type="button" class="lib-card lib-add" data-open="dlg-new"><span class="lib-thumb" aria-hidden="true">+</span><span class="lib-name">Add icon</span></button></li>
+        {{range .Local}}
+        <li><button type="button" class="lib-card" data-open="dlg-{{.Slug}}"><span class="lib-thumb"><img src="{{.Preview}}" alt="" loading="lazy"></span><span class="lib-name">{{.Name}}</span></button></li>
+        {{end}}
+      </ul>
+    </section>
+
+    <aside class="lib-side">
+      <section>
+        <h2>Catalogues</h2>
+        {{if .Cached}}
+        <p class="hint">Downloaded {{.Fetched.Format "2 January 2006, 15:04 MST"}}.</p>
+        <ul class="lib-counts">
+          {{range .Counts}}<li>{{.Source}}: {{.N}} icon{{if ne .N 1}}s{{end}}</li>{{end}}
+        </ul>
+        {{else}}
+        <p class="hint">Not downloaded yet. They download the first time someone searches.</p>
+        {{end}}
+        <form method="post" action="/admin/library/refresh">
+          <button type="submit" class="primary">Refresh now</button>
         </form>
-      </details>
-    </li>
-    {{else}}
-    <li class="hint">No custom icons yet.</li>
-    {{end}}
-  </ul>
+      </section>
+      <section>
+        <h2>Sources and licences</h2>
+        {{template "icon-credits"}}
+      </section>
+    </aside>
+  </div>
+
+  <dialog id="dlg-new" class="lib-dialog">
+    <h2>Add a custom icon</h2>
+    {{template "custom-form" .New}}
+  </dialog>
+  {{range .Local}}
+  <dialog id="dlg-{{.Slug}}" class="lib-dialog">
+    <h2>Edit {{.Name}}</h2>
+    {{template "custom-form" .}}
+    <form method="post" action="/admin/library/local/{{.Slug}}/delete" class="lib-delete" onsubmit="return confirm('Delete this custom icon? Tiles that use it keep their copy.')">
+      <button type="submit" class="danger">Delete icon</button>
+    </form>
+  </dialog>
   {{end}}
-  <h3>Add a custom icon</h3>
-  {{template "custom-form" .Form.New}}
-  <h2>Sources and licences</h2>
-  {{template "icon-credits"}}
+  {{end}}
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>
 </main>
 {{end}}
@@ -69,6 +84,9 @@
       <p class="hint">The site's own icon is fetched when you save.</p>
     </div>
   </fieldset>
-  <button type="submit" class="primary">{{if .Slug}}Save{{else}}Add icon{{end}}</button>
+  <div class="actions">
+    <button type="button" data-close-dialog>Cancel</button>
+    <button type="submit" class="primary">{{if .Slug}}Save{{else}}Add icon{{end}}</button>
+  </div>
 </form>
 {{end}}

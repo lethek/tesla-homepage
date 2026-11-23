@@ -85,6 +85,16 @@
     });
   }
 
+  // Icon library page: custom icon dialogs.
+  document.addEventListener("click", function (e) {
+    var open = e.target.closest("[data-open]");
+    if (open) {
+      document.getElementById(open.dataset.open).showModal();
+    } else if (e.target.closest("[data-close-dialog]")) {
+      e.target.closest("dialog").close();
+    }
+  });
+
   // Custom icon forms on the Icon library page: image source tabs.
   document.addEventListener("change", function (e) {
     var form = e.target.closest(".custom-form");
