@@ -161,7 +161,7 @@ input[type=text], input:not([type]), input[type=url], input[type=password], inpu
 }
 .editing .tile { cursor: grab; }
 .tile-actions { display: flex; gap: 4px; width: 100%; }
-.tile-actions button { flex: 1; padding: 0; min-width: 0; font-size: 12px; }
+.tile-actions button { flex: 1; padding: 0; min-width: 0; display: grid; place-items: center; }
 .add-tile { padding: 0; background: none; border: 0; }
 .add-tile .icon { border: 2px dashed #444; background: none; font-size: calc(var(--tile) * .4); color: var(--muted); }
 .sortable-ghost { opacity: .35; }
