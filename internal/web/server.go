@@ -17,6 +17,7 @@ import (
 
 	"github.com/lethek/tesla-homepage/internal/auth"
 	"github.com/lethek/tesla-homepage/internal/icons"
+	"github.com/lethek/tesla-homepage/internal/library"
 	"github.com/lethek/tesla-homepage/internal/store"
 )
 
@@ -27,6 +28,7 @@ type Server struct {
 	store    *store.Store
 	sessions *auth.Sessions
 	icons    *icons.Resolver
+	library  *library.Library
 	pages    map[string]*template.Template
 }
 
@@ -42,9 +44,9 @@ type view struct {
 	Form     any
 }
 
-var pageNames = []string{"home", "edit", "login", "setup", "welcome", "password", "users"}
+var pageNames = []string{"home", "edit", "login", "setup", "welcome", "password", "users", "library"}
 
-func New(st *store.Store, sessions *auth.Sessions, resolver *icons.Resolver) (*Server, error) {
+func New(st *store.Store, sessions *auth.Sessions, resolver *icons.Resolver, lib *library.Library) (*Server, error) {
 	funcs := template.FuncMap{
 		"initial": func(s string) string {
 			r, _ := utf8.DecodeRuneInString(strings.TrimSpace(s))
@@ -63,7 +65,7 @@ func New(st *store.Store, sessions *auth.Sessions, resolver *icons.Resolver) (*S
 		}
 		pages[name] = t
 	}
-	return &Server{store: st, sessions: sessions, icons: resolver, pages: pages}, nil
+	return &Server{store: st, sessions: sessions, icons: resolver, library: lib, pages: pages}, nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -99,6 +101,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /edit/sections/{id}/delete", s.user(s.deleteSection))
 	mux.Handle("GET /edit/sections/{id}/tiles/new", s.user(s.newTileForm))
 	mux.Handle("POST /edit/sections/{id}/tiles", s.user(s.addTile))
+	mux.Handle("GET /edit/library", s.user(s.librarySearch))
 	mux.Handle("GET /edit/tiles/{id}", s.user(s.editTileForm))
 	mux.Handle("POST /edit/tiles/{id}", s.user(s.updateTile))
 	mux.Handle("POST /edit/tiles/{id}/delete", s.user(s.deleteTile))
@@ -107,6 +110,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/users", s.admin(s.createUser))
 	mux.Handle("POST /admin/users/{id}/password", s.admin(s.resetPassword))
 	mux.Handle("POST /admin/users/{id}/delete", s.admin(s.deleteUser))
+	mux.Handle("GET /admin/library", s.admin(s.libraryPage))
+	mux.Handle("POST /admin/library/refresh", s.admin(s.refreshLibrary))
 
 	return http.NewCrossOriginProtection().Handler(securityHeaders(mux))
 }
@@ -262,11 +267,15 @@ func (s *Server) welcome(w http.ResponseWriter, r *http.Request, u store.User) {
 	redirect(w, r, "/")
 }
 
-// fetchStarterIcons fetches each Tile's icon from its site in parallel.
-// Tiles whose icon can't be fetched keep the placeholder.
+// fetchStarterIcons gives each Tile its exact Icon library match, or else the
+// site's own icon. Tiles with neither keep the placeholder.
 func (s *Server) fetchStarterIcons(ctx context.Context, hp *store.Homepage) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	cat, err := s.library.Catalogue(ctx)
+	if err != nil {
+		log.Printf("icon library unavailable for starter set: %v", err)
+	}
 	done := make(chan struct{})
 	n := 0
 	for i := range hp.Sections {
@@ -274,14 +283,69 @@ func (s *Server) fetchStarterIcons(ctx context.Context, hp *store.Homepage) {
 			t := &hp.Sections[i].Tiles[j]
 			n++
 			go func() {
+				defer func() { done <- struct{}{} }()
+				// The template may name the file to use; otherwise use the
+				// base file of an exact match.
+				file := t.Library
+				t.Library = ""
+				if cat != nil {
+					if file == "" {
+						if match, ok := cat.Exact(t.Title, t.URL); ok {
+							file = match
+						}
+					}
+					if file != "" {
+						if icon, err := s.libraryIcon(ctx, cat, file); err == nil {
+							t.Icon, t.Library = icon, file
+							return
+						}
+					}
+				}
 				t.Icon = s.icons.FromSite(ctx, t.URL)
-				done <- struct{}{}
 			}()
 		}
 	}
 	for range n {
 		<-done
 	}
+}
+
+// Icon library admin
+
+type libraryStatus struct {
+	Cached  bool
+	Fetched time.Time
+	Counts  []library.Count
+}
+
+func (s *Server) libraryPage(w http.ResponseWriter, r *http.Request, u store.User) {
+	msg := ""
+	if r.URL.Query().Get("done") == "refreshed" {
+		msg = "Icon library refreshed."
+	}
+	s.renderLibrary(w, u, http.StatusOK, msg, "")
+}
+
+func (s *Server) renderLibrary(w http.ResponseWriter, u store.User, status int, msg, errMsg string) {
+	cat, ok, err := s.library.Cached()
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	st := libraryStatus{Cached: ok}
+	if ok {
+		st.Fetched, st.Counts = cat.Fetched, cat.Counts()
+	}
+	s.render(w, "library", status, view{User: &u, Message: msg, Error: errMsg, Form: st})
+}
+
+func (s *Server) refreshLibrary(w http.ResponseWriter, r *http.Request, u store.User) {
+	if _, err := s.library.Refresh(r.Context()); err != nil {
+		log.Printf("refreshing icon library: %v", err)
+		s.renderLibrary(w, u, http.StatusBadGateway, "", "Couldn't download the icon library: "+err.Error())
+		return
+	}
+	redirect(w, r, "/admin/library?done=refreshed")
 }
 
 // Setup, login and logout

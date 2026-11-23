@@ -13,12 +13,21 @@ const (
 	OverflowScroll Overflow = "scroll"
 )
 
+// MaxPadding is the largest Tile padding percentage.
+const MaxPadding = 30
+
 type Tile struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
 	URL   string `json:"url"`
 	// Icon is a file name in the icon store, or empty for the placeholder.
 	Icon string `json:"icon,omitempty"`
+	// Plate is the "#rrggbb" colour shown behind the icon, or empty for none.
+	Plate string `json:"plate,omitempty"`
+	// Padding is the space around the icon as a percentage of the tile, 0 to MaxPadding.
+	Padding int `json:"padding,omitempty"`
+	// Library names the Icon library entry the icon came from, if any.
+	Library string `json:"library,omitempty"`
 }
 
 type Section struct {
@@ -68,11 +77,13 @@ func StarterHomepage() Homepage {
 			Tile{Title: "YouTube", URL: "https://www.youtube.com"},
 			Tile{Title: "Netflix", URL: "https://www.netflix.com"},
 			Tile{Title: "Disney+", URL: "https://www.disneyplus.com"},
-			Tile{Title: "Prime Video", URL: "https://www.primevideo.com"},
+			// Library names the icon file to use where the base icon is
+			// dark and would be hard to see on a dark tile.
+			Tile{Title: "Prime Video", URL: "https://www.primevideo.com", Library: "prime-video-light"},
 		),
 		section("Music",
 			Tile{Title: "Spotify", URL: "https://open.spotify.com"},
-			Tile{Title: "SoundCloud", URL: "https://soundcloud.com"},
+			Tile{Title: "SoundCloud", URL: "https://soundcloud.com", Library: "soundcloud-dark"},
 		),
 		section("Everyday",
 			Tile{Title: "Google", URL: "https://www.google.com"},

@@ -90,14 +90,20 @@ button, input, select { font: inherit; color: inherit; }
   text-decoration: none; color: var(--fg);
 }
 .icon {
-  display: grid; place-items: center;
+  /* One cell fixed to the tile's content box, so a tall image can't stretch it. */
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center;
   width: var(--tile); height: var(--tile);
   border-radius: 22%;
-  object-fit: cover;
+  overflow: hidden;
   background: #1c1c1c;
 }
+/* Every icon is scaled to fit the tile and never cropped. --pad is the
+   Tile's padding as a percentage of the tile. */
+.icon { padding: calc(var(--tile) * var(--pad, 0) / 100); }
+.icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.icon.plated { background: var(--plate); }
 .placeholder {
-  background: linear-gradient(135deg, #3a3a3a, #1e1e1e);
+  background: var(--plate, linear-gradient(135deg, #3a3a3a, #1e1e1e));
   font-size: calc(var(--tile) * .45); font-weight: 700; color: #ddd;
 }
 .label {
@@ -123,10 +129,11 @@ button, .button {
   min-height: var(--touch); padding: 0 18px;
   background: #262626; border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
 }
+a.button { display: inline-flex; align-items: center; text-decoration: none; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 button.danger { color: var(--danger); }
 button:disabled { opacity: .5; }
-input[type=text], input:not([type]), input[type=url], input[type=password] {
+input[type=text], input:not([type]), input[type=url], input[type=password], input[type=search] {
   min-height: var(--touch); padding: 0 12px;
   background: #0d0d0d; border: 1px solid var(--line); border-radius: 10px;
 }
@@ -174,6 +181,45 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .tile-form label.check { flex-direction: row; align-items: center; min-height: var(--touch); }
 .tile-form fieldset { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--line); border-radius: 12px; }
 .current-icon { display: flex; align-items: center; gap: 12px; --tile: 56px; }
+
+/* Icon source tabs and Plate choice: hidden radios styled through their labels */
+.tabs, .plates { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs input, .plates > input, .lib-radio { position: absolute; opacity: 0; pointer-events: none; }
+.tabs label, .plates > label {
+  display: inline-flex; flex-direction: row; align-items: center; gap: 8px;
+  min-height: var(--touch); padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+}
+.tabs input:checked + label, .plates > input:checked + label { border-color: var(--accent); background: #2a0f1b; }
+.tabs input:focus-visible + label, .plates > input:focus-visible + label { outline: 2px solid var(--accent); }
+.swatch { width: 20px; height: 20px; border-radius: 6px; border: 1px solid #555; }
+.padding { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; margin-top: 10px; }
+.padding input { min-height: var(--touch); width: 100%; }
+.plates input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; background: none; }
+.panel { display: none; }
+.tile-form[data-source=keep] .panel-keep,
+.tile-form[data-source=library] .panel-library,
+.tile-form[data-source=upload] .panel-upload,
+.tile-form[data-source=url] .panel-url,
+.tile-form[data-source=site] .panel-site { display: flex; flex-direction: column; gap: 8px; }
+.tile-form[data-source=keep] .panel-keep { flex-direction: row; align-items: center; }
+
+.lib-results {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px;
+  max-height: 260px; overflow-y: auto;
+}
+.lib-results .error, .lib-results .hint { grid-column: 1 / -1; }
+.lib-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border: 2px solid transparent; border-radius: 12px; cursor: pointer;
+  font-size: 11px; text-align: center; word-break: break-word;
+}
+/* A two-tone checkerboard keeps both black and white logos visible. */
+.lib-pick img {
+  width: 48px; height: 48px; object-fit: contain; border-radius: 8px;
+  background: repeating-conic-gradient(#5a5a5a 0% 25%, #7a7a7a 0% 50%) 0 0 / 12px 12px;
+}
+.lib-radio:checked + .lib-pick { border-color: var(--accent); background: #2a0f1b; }
 .hint { color: var(--muted); font-size: 13px; margin: 0; }
 .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 .htmx-indicator { display: none; color: var(--muted); margin-right: auto; }
@@ -188,6 +234,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .card.wide { width: min(820px, calc(100vw - 32px)); }
 .card h1 { margin-top: 0; font-size: 22px; }
 .choices { display: flex; flex-direction: column; gap: 10px; }
+.credits { padding-left: 20px; margin: 0 0 8px; }
 .error { color: var(--danger); }
 .message { color: #6fdc8c; }
 .badge { font-size: 11px; padding: 2px 6px; border-radius: 6px; background: #2a0f1b; color: var(--accent); }

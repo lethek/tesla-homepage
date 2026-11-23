@@ -14,4 +14,8 @@
 
 **Draft**: A User's unpublished copy of their Homepage. Edit mode changes it, "Done" publishes it, and "Cancel" discards it. An abandoned Draft is resumed the next time the User enters Edit mode.
 
+**Icon library**: A searchable catalogue of ready-made icons for well-known sites and apps. A User can pick a Tile's icon from it instead of uploading one, giving an image URL, or taking the site's own icon.
+
+**Plate**: An optional background colour, with padding, shown behind a Tile's icon. Logos with transparent backgrounds need one to look like app tiles.
+
 **Overflow**: A Homepage-wide setting for rows of Tiles wider than the screen. `wrap` continues them on the next line, and `scroll` lets them scroll sideways.

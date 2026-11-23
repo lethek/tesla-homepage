@@ -8,11 +8,13 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/lethek/tesla-homepage/internal/auth"
 	"github.com/lethek/tesla-homepage/internal/icons"
+	"github.com/lethek/tesla-homepage/internal/library"
 	"github.com/lethek/tesla-homepage/internal/store"
 )
 
@@ -28,17 +30,89 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Icon fetches go to a server that has nothing, so they fall back to the placeholder.
-	nothing := httptest.NewServer(http.NotFoundHandler())
-	t.Cleanup(nothing.Close)
-	resolver := &icons.Resolver{Client: nothing.Client(), Save: st.SaveIcon}
-	s, err := New(st, &auth.Sessions{Secret: []byte("test")}, resolver)
+	// Every outbound request goes to a fake CDN. It serves the Icon library
+	// and its PNGs, and 404s everything else, so site icons fall back to
+	// the placeholder.
+	cdn := httptest.NewServer(http.HandlerFunc(fakeCDN))
+	t.Cleanup(cdn.Close)
+	target, _ := url.Parse(cdn.URL)
+	client := &http.Client{Transport: rewriteTransport{target}}
+	resolver := &icons.Resolver{Client: client, Save: st.SaveIcon}
+	lib := library.New(st.LibraryCachePath(), store.WriteFile)
+	lib.BaseURL, lib.Client = cdn.URL, client
+	lib.SimpleDataURL, lib.SimpleBaseURL = cdn.URL+"/si-data.json", cdn.URL+"/si"
+	lib.SelfhstURL = cdn.URL + "/sh"
+	lib.LobeDataURL, lib.LobeBaseURL = cdn.URL+"/lh-data", cdn.URL+"/lh"
+	s, err := New(st, &auth.Sessions{Secret: []byte("test")}, resolver, lib)
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)
 	return &env{t: t, srv: srv, store: st}
+}
+
+const pngHeader = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+
+func fakeCDN(w http.ResponseWriter, r *http.Request) {
+	switch {
+	case r.URL.Path == "/metadata.json":
+		w.Write([]byte(`{
+			"netflix": {"aliases": [], "categories": ["Streaming"]},
+			"spotify": {"aliases": [], "categories": ["media"], "colors": {"light": "spotify-light", "dark": "spotify-dark"}},
+			"prime-video": {"aliases": [], "categories": [], "colors": {"light": "prime-video-light", "dark": "prime-video"}},
+			"github": {"aliases": ["GitHub"], "categories": [], "colors": {"dark": "github", "light": "github-light"}},
+			"youtube": {"aliases": [], "categories": ["Streaming"]}
+		}`))
+	case r.URL.Path == "/si-data.json":
+		w.Write([]byte(`[
+			{"title": "SoundCloud", "slug": "soundcloud", "hex": "FF5500"},
+			{"title": "Roku", "slug": "roku", "hex": "662D91"},
+			{"title": "Netflix", "slug": "netflix", "hex": "E50914"}
+		]`))
+	case r.URL.Path == "/sh/index.json":
+		w.Write([]byte(`[{"Name": "Plex", "Reference": "plex", "PNG": "Yes", "Light": "Yes", "Dark": "Yes", "Tags": "Streaming"}]`))
+	case r.URL.Path == "/lh-data":
+		w.Write([]byte(`{"tags": {"latest": "1.0.0"}}`))
+	case r.URL.Path == "/lh-data@1.0.0":
+		w.Write([]byte(`{"files": [{"name": "/dark/claude.png"}, {"name": "/dark/claude-color.png"}, {"name": "/light/claude.png"}]}`))
+	case strings.HasPrefix(r.URL.Path, "/sh/png/"), strings.HasPrefix(r.URL.Path, "/lh@latest/"):
+		// selfh.st and LobeHub serve PNGs. The body names the path so tests can
+		// tell files apart.
+		w.Write([]byte(pngHeader + r.URL.Path))
+	case strings.HasPrefix(r.URL.Path, "/si/"):
+		// Simple Icons serves SVGs. The body names the path so tests can tell
+		// colours apart.
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>` + r.URL.Path + `</title></svg>`))
+	case strings.HasPrefix(r.URL.Path, "/png/"):
+		// The body ends with the file name so tests can tell variants apart.
+		w.Write([]byte(pngHeader + strings.TrimPrefix(r.URL.Path, "/png/")))
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+// rewriteTransport sends every request to target, keeping the path.
+type rewriteTransport struct{ target *url.URL }
+
+func (t rewriteTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.URL.Scheme, r.URL.Host = t.target.Scheme, t.target.Host
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+// iconBody returns the stored bytes of a Tile's icon.
+func (e *env) iconBody(name string) string {
+	p, err := e.store.IconPath(name)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return string(b)
 }
 
 // client is a browser with its own cookie jar that doesn't follow redirects.

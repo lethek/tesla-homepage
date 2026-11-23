@@ -17,6 +17,19 @@ Open the app in a browser. The first visitor creates the admin account, and the 
 
 Put it behind HTTPS in production. Session cookies get the `Secure` flag when the request arrives over TLS or with `X-Forwarded-Proto: https`.
 
+## Icon library
+
+Tiles can use icons from four catalogues, the same ones that [dashboardicons.com](https://dashboardicons.com) indexes:
+
+| Source | Licence |
+|---|---|
+| [Dashboard Icons](https://dashboardicons.com) | Apache-2.0 |
+| [Simple Icons](https://simpleicons.org) | CC0 |
+| [selfh.st icons](https://selfh.st/icons) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), credited in the app |
+| [LobeHub Icons](https://lobehub.com/icons) | MIT |
+
+Brand names and logos belong to their owners. The catalogues are downloaded the first time anyone searches and refreshed only from the Icon library page in the admin menu. If any download fails, nothing is cached and the next search tries again. A picked icon is copied to the data volume unchanged.
+
 ## Development
 
 ```sh

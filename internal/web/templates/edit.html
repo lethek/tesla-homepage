@@ -63,20 +63,67 @@
 </div>
 {{end}}
 
+{{define "library-results"}}
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+{{range .Results}}
+<input class="lib-radio" type="radio" name="library" id="lib-{{.Name}}" value="{{.Name}}" {{if .Selected}}checked{{end}}>
+<label class="lib-pick" for="lib-{{.Name}}"><img src="{{.Preview}}" alt="" loading="lazy"><span>{{.Label}}</span></label>
+{{end}}
+{{if and .Query (not .Results) (not .Error)}}<p class="hint">No icons match "{{.Query}}".</p>{{end}}
+{{end}}
+
 {{define "tile-form"}}
-<form class="tile-form" hx-post="{{.Action}}" hx-target="#editor" hx-swap="outerHTML" hx-encoding="multipart/form-data" hx-disabled-elt="find button[type=submit]">
+<form class="tile-form" data-source="{{.Source}}" hx-post="{{.Action}}" hx-target="#editor" hx-swap="outerHTML" hx-encoding="multipart/form-data" hx-disabled-elt="find button[type=submit]">
   <h2>{{if .Tile.ID}}Edit tile{{else}}Add tile{{end}}</h2>
   {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
-  <label>Title <input name="title" value="{{.Tile.Title}}" maxlength="40" required></label>
-  <label>Web address <input name="url" type="url" value="{{.Tile.URL}}" placeholder="https://" required></label>
-  <fieldset>
+  <label>Title <input id="tile-title" name="title" value="{{.Tile.Title}}" maxlength="40" required></label>
+  <label>Web address <input id="tile-url" name="url" type="url" value="{{.Tile.URL}}" placeholder="https://" required></label>
+
+  <fieldset class="icon-source">
     <legend>Icon</legend>
-    {{if .Tile.Icon}}<div class="current-icon">{{template "icon" .Tile}} Current icon</div>{{end}}
-    <label>Image URL <input name="icon_url" type="url" value="{{.IconURL}}" placeholder="https://"></label>
-    <label>Or upload an image <input name="icon_file" type="file" accept="image/*"></label>
-    {{if .Tile.ID}}<label class="check"><input type="checkbox" name="refetch"> Fetch the icon again from the site</label>{{end}}
-    <p class="hint">Leave these empty to use the site's own icon.</p>
+    <div class="tabs">
+      {{$src := .Source}}
+      {{if and .Tile.Icon (not .Tile.Library)}}<input type="radio" name="source" id="src-keep" value="keep" {{if eq $src "keep"}}checked{{end}}><label for="src-keep">Current</label>{{end}}
+      <input type="radio" name="source" id="src-library" value="library" {{if eq $src "library"}}checked{{end}}><label for="src-library">Library</label>
+      <input type="radio" name="source" id="src-upload" value="upload" {{if eq $src "upload"}}checked{{end}}><label for="src-upload">Upload</label>
+      <input type="radio" name="source" id="src-url" value="url" {{if eq $src "url"}}checked{{end}}><label for="src-url">Image URL</label>
+      <input type="radio" name="source" id="src-site" value="site" {{if eq $src "site"}}checked{{end}}><label for="src-site">From site</label>
+    </div>
+
+    {{if .Tile.Icon}}<div class="panel panel-keep current-icon">{{template "icon" .Tile}} Keep the current icon.</div>{{end}}
+    <div class="panel panel-library">
+      <input id="library-q" type="search" name="q" value="{{.Query}}" placeholder="Search icons" autocomplete="off" aria-label="Search the icon library"
+        hx-get="/edit/library" hx-trigger="load, input changed delay:300ms, search" hx-target="#library-results" hx-swap="innerHTML"
+        hx-include="#tile-title, #tile-url, .lib-radio:checked" hx-sync="this:replace">
+      <div id="library-results" class="lib-results">{{with .Library}}<input class="lib-radio" type="radio" name="library" value="{{.}}" checked hidden>{{end}}</div>
+      <p class="hint">Icons from Dashboard Icons, Simple Icons, <a href="https://selfh.st/icons" target="_blank" rel="noopener">selfh.st</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) and LobeHub. If you don't pick one, the site's own icon is used.</p>
+    </div>
+    <div class="panel panel-upload">
+      <label>Image file <input name="icon_file" type="file" accept="image/*"></label>
+    </div>
+    <div class="panel panel-url">
+      <label>Image web address <input name="icon_url" type="url" value="{{.IconURL}}" placeholder="https://"></label>
+    </div>
+    <div class="panel panel-site">
+      <p class="hint">The site's own icon is fetched when you save. If it has none, a letter placeholder is shown.</p>
+    </div>
   </fieldset>
+
+  <fieldset class="plate">
+    <legend>Plate</legend>
+    <div class="plates">
+      {{$p := .PlateChoice}}
+      <input type="radio" name="plate" id="plate-none" value="none" {{if eq $p "none"}}checked{{end}}><label for="plate-none">None</label>
+      <input type="radio" name="plate" id="plate-dark" value="dark" {{if eq $p "dark"}}checked{{end}}><label for="plate-dark"><span class="swatch" style="background:#1f1f1f"></span>Dark</label>
+      <input type="radio" name="plate" id="plate-white" value="white" {{if eq $p "white"}}checked{{end}}><label for="plate-white"><span class="swatch" style="background:#ffffff"></span>White</label>
+      <input type="radio" name="plate" id="plate-custom" value="custom" {{if eq $p "custom"}}checked{{end}}><label for="plate-custom">Custom <input type="color" name="plate_custom" value="{{.PlateCustom}}" aria-label="Custom plate colour"></label>
+    </div>
+    <p class="hint">A background behind the icon. Useful for logos with transparent backgrounds.</p>
+    <label class="padding">Padding <output>{{.Tile.Padding}}%</output>
+      <input type="range" name="padding" min="0" max="30" step="1" value="{{.Tile.Padding}}">
+    </label>
+  </fieldset>
+
   <div class="actions">
     <span class="htmx-indicator">Fetching icon…</span>
     <button type="button" data-close>Cancel</button>

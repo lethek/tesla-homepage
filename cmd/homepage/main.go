@@ -12,6 +12,7 @@ import (
 
 	"github.com/lethek/tesla-homepage/internal/auth"
 	"github.com/lethek/tesla-homepage/internal/icons"
+	"github.com/lethek/tesla-homepage/internal/library"
 	"github.com/lethek/tesla-homepage/internal/store"
 	"github.com/lethek/tesla-homepage/internal/web"
 )
@@ -28,7 +29,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("loading session secret: %v", err)
 	}
-	srv, err := web.New(st, &auth.Sessions{Secret: secret}, icons.New(st.SaveIcon))
+	lib := library.New(st.LibraryCachePath(), store.WriteFile)
+	srv, err := web.New(st, &auth.Sessions{Secret: secret}, icons.New(st.SaveIcon), lib)
 	if err != nil {
 		log.Fatal(err)
 	}

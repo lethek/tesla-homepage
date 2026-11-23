@@ -1,0 +1,23 @@
+{{define "body"}}
+<main class="card">
+  <h1>Icon library</h1>
+  {{template "messages" .}}
+  <p>Tiles can use ready-made icons from the catalogues below. Their lists are downloaded the first time someone searches, then kept until you refresh them here.</p>
+  {{with .Form}}
+  {{if .Cached}}
+  <p>Downloaded {{.Fetched.Format "2 January 2006, 15:04 MST"}}.</p>
+  <ul>
+    {{range .Counts}}<li>{{.Source}}: {{.N}} icon{{if ne .N 1}}s{{end}}</li>{{end}}
+  </ul>
+  {{else}}
+  <p>Not downloaded yet.</p>
+  {{end}}
+  {{end}}
+  <form method="post" action="/admin/library/refresh">
+    <button type="submit" class="primary">Refresh now</button>
+  </form>
+  <h2>Sources and licences</h2>
+  {{template "icon-credits"}}
+  <p><a class="button" href="/">Back to homepage</a></p>
+</main>
+{{end}}

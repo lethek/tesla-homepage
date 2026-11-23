@@ -281,6 +281,9 @@ func (s *Store) write(userID, name string, hp Homepage) error {
 	return writeJSON(filepath.Join(s.userDir(userID), name), hp)
 }
 
+// LibraryCachePath is where the Icon library catalogue is cached.
+func (s *Store) LibraryCachePath() string { return filepath.Join(s.dir, "library.json") }
+
 // Icons
 
 // SaveIcon stores icon data under a content-addressed name and returns it.
@@ -358,8 +361,10 @@ func writeJSON(path string, v any) error {
 	return writeFile(path, b)
 }
 
-// writeFile writes data to a temp file and renames it into place so readers
+// WriteFile writes data to a temp file and renames it into place so readers
 // never see a partial file.
+func WriteFile(path string, data []byte) error { return writeFile(path, data) }
+
 func writeFile(path string, data []byte) error {
 	f, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
 	if err != nil {

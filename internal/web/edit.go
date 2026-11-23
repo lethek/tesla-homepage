@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/lethek/tesla-homepage/internal/icons"
+	"github.com/lethek/tesla-homepage/internal/library"
 	"github.com/lethek/tesla-homepage/internal/store"
 )
 
@@ -148,16 +152,44 @@ func (s *Server) deleteTile(w http.ResponseWriter, r *http.Request, u store.User
 	})
 }
 
-// Tile form
+// Plates
 
-type tileForm struct {
-	Action  string
-	Tile    store.Tile
-	IconURL string
-	Error   string
+const (
+	plateDark  = "#1f1f1f"
+	plateWhite = "#ffffff"
+)
+
+var hexColour = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// plateChoice maps a stored Plate to the dialog's radio choice and custom colour.
+func plateChoice(plate string) (choice, custom string) {
+	switch plate {
+	case "":
+		return "none", plateDark
+	case plateDark:
+		return "dark", plateDark
+	case plateWhite:
+		return "white", plateDark
+	}
+	return "custom", plate
 }
 
-func (s *Server) renderTileForm(w http.ResponseWriter, u store.User, f tileForm, isError bool) {
+// Tile form
+
+// tileForm is the data behind the add/edit Tile dialog.
+type tileForm struct {
+	Action      string
+	Tile        store.Tile
+	Source      string // keep, library, upload, url or site
+	Library     string
+	Query       string
+	IconURL     string
+	PlateChoice string
+	PlateCustom string
+	Error       string
+}
+
+func (s *Server) renderTileForm(w http.ResponseWriter, f tileForm, isError bool) {
 	if isError {
 		// Show the form again inside the dialog instead of replacing the editor.
 		w.Header().Set("HX-Retarget", "#dialog-body")
@@ -167,7 +199,12 @@ func (s *Server) renderTileForm(w http.ResponseWriter, u store.User, f tileForm,
 }
 
 func (s *Server) newTileForm(w http.ResponseWriter, r *http.Request, u store.User) {
-	s.renderTileForm(w, u, tileForm{Action: "/edit/sections/" + url.PathEscape(r.PathValue("id")) + "/tiles"}, false)
+	s.renderTileForm(w, tileForm{
+		Action:      "/edit/sections/" + url.PathEscape(r.PathValue("id")) + "/tiles",
+		Source:      "library",
+		PlateChoice: "none",
+		PlateCustom: plateDark,
+	}, false)
 }
 
 func (s *Server) editTileForm(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -181,17 +218,27 @@ func (s *Server) editTileForm(w http.ResponseWriter, r *http.Request, u store.Us
 		http.NotFound(w, r)
 		return
 	}
-	s.renderTileForm(w, u, tileForm{Action: "/edit/tiles/" + url.PathEscape(t.ID), Tile: *t}, false)
+	f := tileForm{Action: "/edit/tiles/" + url.PathEscape(t.ID), Tile: *t, Query: t.Title}
+	f.PlateChoice, f.PlateCustom = plateChoice(t.Plate)
+	switch {
+	case t.Library != "":
+		f.Source, f.Library = "library", t.Library
+	case t.Icon != "":
+		f.Source = "keep"
+	default:
+		f.Source = "library"
+	}
+	s.renderTileForm(w, f, false)
 }
 
 func (s *Server) addTile(w http.ResponseWriter, r *http.Request, u store.User) {
 	sectionID := r.PathValue("id")
 	f := tileForm{Action: "/edit/sections/" + url.PathEscape(sectionID) + "/tiles"}
-	in, ok := s.readTileForm(w, r, u, &f)
+	in, ok := s.readTileForm(w, r, &f)
 	if !ok {
 		return
 	}
-	icon, ok := s.resolveIcon(w, r, u, &f, in, "", true)
+	icon, lib, ok := s.resolveIcon(w, r, &f, in, store.Tile{})
 	if !ok {
 		return
 	}
@@ -200,7 +247,7 @@ func (s *Server) addTile(w http.ResponseWriter, r *http.Request, u store.User) {
 		if sec == nil {
 			return errBadRequest
 		}
-		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon})
+		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon, Plate: in.plate, Padding: in.padding, Library: lib})
 		return nil
 	})
 }
@@ -218,11 +265,11 @@ func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User
 		return
 	}
 	f := tileForm{Action: "/edit/tiles/" + url.PathEscape(tileID), Tile: *existing}
-	in, ok := s.readTileForm(w, r, u, &f)
+	in, ok := s.readTileForm(w, r, &f)
 	if !ok {
 		return
 	}
-	icon, ok := s.resolveIcon(w, r, u, &f, in, existing.Icon, in.refetch)
+	icon, lib, ok := s.resolveIcon(w, r, &f, in, *existing)
 	if !ok {
 		return
 	}
@@ -231,40 +278,66 @@ func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User
 		if t == nil {
 			return errBadRequest
 		}
-		t.Title, t.URL, t.Icon = in.title, in.url, icon
+		t.Title, t.URL, t.Icon, t.Plate, t.Padding, t.Library = in.title, in.url, icon, in.plate, in.padding, lib
 		return nil
 	})
 }
 
 type tileInput struct {
-	title, url, iconURL string
-	upload              []byte
-	refetch             bool
+	title, url string
+	source     string
+	library    string
+	iconURL    string
+	upload     []byte
+	plate      string
+	padding    int
 }
 
 // readTileForm parses and validates a submitted Tile form. On failure it
 // renders the form with an error and returns false.
-func (s *Server) readTileForm(w http.ResponseWriter, r *http.Request, u store.User, f *tileForm) (tileInput, bool) {
+func (s *Server) readTileForm(w http.ResponseWriter, r *http.Request, f *tileForm) (tileInput, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, icons.MaxSize+1<<20)
 	if err := r.ParseMultipartForm(icons.MaxSize); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		f.Error = "The upload is too large. Icons must be 2 MB or less."
-		s.renderTileForm(w, u, *f, true)
+		s.renderTileForm(w, *f, true)
 		return tileInput{}, false
 	}
 	in := tileInput{
 		title:   clip(r.FormValue("title"), 40),
 		url:     strings.TrimSpace(r.FormValue("url")),
+		source:  r.FormValue("source"),
+		library: r.FormValue("library"),
 		iconURL: strings.TrimSpace(r.FormValue("icon_url")),
-		refetch: r.FormValue("refetch") != "",
 	}
 	f.Tile.Title, f.Tile.URL, f.IconURL = in.title, in.url, in.iconURL
+	f.Source, f.Library, f.Query = in.source, in.library, r.FormValue("q")
+
+	switch choice := r.FormValue("plate"); choice {
+	case "dark":
+		in.plate = plateDark
+	case "white":
+		in.plate = plateWhite
+	case "custom":
+		in.plate = strings.ToLower(r.FormValue("plate_custom"))
+	}
+	f.PlateChoice, f.PlateCustom = plateChoice(in.plate)
+
+	paddingOK := true
+	if v := strings.TrimSpace(r.FormValue("padding")); v != "" {
+		n, err := strconv.Atoi(v)
+		paddingOK = err == nil && n >= 0 && n <= store.MaxPadding
+		if paddingOK {
+			in.padding = n
+		}
+	}
+	f.Tile.Padding = in.padding
 
 	if file, _, err := r.FormFile("icon_file"); err == nil {
 		defer file.Close()
 		in.upload, err = io.ReadAll(io.LimitReader(file, icons.MaxSize+1))
 		if err != nil || len(in.upload) > icons.MaxSize {
 			f.Error = "The upload is too large. Icons must be 2 MB or less."
-			s.renderTileForm(w, u, *f, true)
+			s.renderTileForm(w, *f, true)
 			return tileInput{}, false
 		}
 	}
@@ -274,39 +347,138 @@ func (s *Server) readTileForm(w http.ResponseWriter, r *http.Request, u store.Us
 		f.Error = "Enter a title."
 	case !isWebURL(in.url):
 		f.Error = "Enter a web address starting with http:// or https://."
-	case in.iconURL != "" && !isWebURL(in.iconURL):
+	case in.plate != "" && !hexColour.MatchString(in.plate):
+		f.Error = "Choose a valid plate colour."
+	case !paddingOK:
+		f.Error = "Padding must be between 0 and 30."
+	case in.source == "upload" && len(in.upload) == 0:
+		f.Error = "Choose an image to upload."
+	case in.source == "url" && in.iconURL == "":
+		f.Error = "Enter the image's web address."
+	case (in.source == "url" || in.source == "") && in.iconURL != "" && !isWebURL(in.iconURL):
 		f.Error = "The image URL must start with http:// or https://."
 	}
 	if f.Error != "" {
-		s.renderTileForm(w, u, *f, true)
+		s.renderTileForm(w, *f, true)
 		return tileInput{}, false
 	}
 	return in, true
 }
 
-// resolveIcon picks the Tile's icon: an upload, then an image URL, then the
-// site's own icon when fetch is set, otherwise current. "" means placeholder.
-func (s *Server) resolveIcon(w http.ResponseWriter, r *http.Request, u store.User, f *tileForm, in tileInput, current string, fetch bool) (string, bool) {
+// resolveIcon gets the icon for the chosen source. It returns the stored icon
+// name ("" for the placeholder) and the Icon library entry it came from.
+func (s *Server) resolveIcon(w http.ResponseWriter, r *http.Request, f *tileForm, in tileInput, current store.Tile) (icon, lib string, ok bool) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	var icon string
 	var err error
-	switch {
-	case len(in.upload) > 0:
+	switch in.source {
+	case "upload":
 		icon, err = s.icons.FromUpload(in.upload)
-	case in.iconURL != "":
+	case "url":
 		icon, err = s.icons.FromURL(ctx, in.iconURL)
-	case fetch || current == "":
+	case "library":
+		if in.library == "" {
+			// Nothing picked: use the site's own icon.
+			icon = s.icons.FromSite(ctx, in.url)
+			break
+		}
+		var cat *library.Catalogue
+		if cat, err = s.library.Catalogue(ctx); err == nil {
+			icon, err = s.libraryIcon(ctx, cat, in.library)
+			lib = in.library
+		}
+	case "site":
 		icon = s.icons.FromSite(ctx, in.url)
+	case "keep":
+		if current.Icon == "" {
+			icon = s.icons.FromSite(ctx, in.url)
+		} else {
+			icon, lib = current.Icon, current.Library
+		}
 	default:
-		icon = current
+		// No tab chosen, e.g. a scripted request: upload, then image URL,
+		// then the current icon, then the site's own icon.
+		switch {
+		case len(in.upload) > 0:
+			icon, err = s.icons.FromUpload(in.upload)
+		case in.iconURL != "":
+			icon, err = s.icons.FromURL(ctx, in.iconURL)
+		case current.Icon != "":
+			icon, lib = current.Icon, current.Library
+		default:
+			icon = s.icons.FromSite(ctx, in.url)
+		}
 	}
 	if err != nil {
 		f.Error = "Couldn't use that icon: " + err.Error()
-		s.renderTileForm(w, u, *f, true)
-		return "", false
+		s.renderTileForm(w, *f, true)
+		return "", "", false
 	}
-	return icon, true
+	return icon, lib, true
+}
+
+// libraryIcon downloads an Icon library file (a base icon or one of its
+// variants), stores it and returns the stored name.
+func (s *Server) libraryIcon(ctx context.Context, cat *library.Catalogue, file string) (string, error) {
+	if !cat.HasFile(file) {
+		return "", fmt.Errorf("%q is not in the icon library", file)
+	}
+	return s.icons.FromURL(ctx, s.library.ImageURL(file))
+}
+
+// Icon library search
+
+type libraryResult struct {
+	Name     string // the file's id
+	Label    string
+	Preview  string
+	Selected bool
+}
+
+type libraryResults struct {
+	Results []libraryResult
+	Query   string
+	Error   string
+}
+
+// librarySearch renders the dialog's library results for q. Each matching icon
+// is listed as its base file followed by its variants. The current pick stays
+// first; with no pick, an exact match for the Tile's title or URL is
+// pre-selected.
+func (s *Server) librarySearch(w http.ResponseWriter, r *http.Request, u store.User) {
+	q := strings.TrimSpace(r.FormValue("q"))
+	res := libraryResults{Query: q}
+	cat, err := s.library.Catalogue(r.Context())
+	if err != nil {
+		res.Error = "The icon library is unavailable right now. You can still upload an icon, give an image URL or use the site's own icon."
+		s.execute(w, "edit", "library-results", http.StatusOK, res)
+		return
+	}
+	selected := r.FormValue("library")
+	if !cat.HasFile(selected) {
+		selected = ""
+	}
+	if selected == "" {
+		if match, ok := cat.Exact(r.FormValue("title"), r.FormValue("url")); ok {
+			selected = match
+		}
+	}
+	add := func(file string) {
+		res.Results = append(res.Results, libraryResult{
+			Name: file, Label: library.Label(file), Preview: s.library.ImageURL(file), Selected: file == selected,
+		})
+	}
+	if selected != "" {
+		add(selected)
+	}
+	for _, found := range cat.Search(q, 24) {
+		for _, file := range found.Files {
+			if file != selected {
+				add(file)
+			}
+		}
+	}
+	s.execute(w, "edit", "library-results", http.StatusOK, res)
 }
 
 func isWebURL(raw string) bool {
