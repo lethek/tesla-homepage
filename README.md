@@ -14,6 +14,7 @@ Open the app in a browser. The first visitor creates the admin account, and the 
 |------------|---------------------|-------------------------------------------------|
 | `ADDR`     | `:8080`             | Listen address                                  |
 | `DATA_DIR` | `/data` (container) | Users, homepages, icons and the session secret |
+| `TRUSTED_PROXIES` | none | Reverse proxies whose `X-Forwarded-For` is believed, as addresses or CIDR ranges |
 
 Put it behind HTTPS in production. Session cookies get the `Secure` flag when the request arrives over TLS or with `X-Forwarded-Proto: https`.
 
@@ -41,7 +42,9 @@ Passwords are stored as salted bcrypt hashes, so precomputed (rainbow table) att
 - Wrong guesses of the current password on the Change password page are limited the same way.
 - Names that don't exist are counted too, so the lockout doesn't reveal which names are real.
 
-Counts are kept in memory and reset when the server restarts. A person can be locked out for a while by someone guessing their name. Behind a proxy the address comes from `X-Forwarded-For`, which a client can forge, so the per-username limit is the one that holds.
+Every spelling of a username that sign-in accepts (any capitalisation, and look-alike letters such as `ſ` for `s`) shares one count. Counts are kept in memory and reset when the server restarts. A person can be locked out for a while by someone guessing their name.
+
+The client's address is the connection's own address. If the server runs behind a reverse proxy, set `TRUSTED_PROXIES` to the proxy's address or CIDR range (a comma separated list, for example `10.0.0.0/8,172.17.0.1`). Only then is `X-Forwarded-For` read, from the right, skipping the proxies' own addresses. Without it every client behind the proxy shares the proxy's address and one 20-failure limit. Anyone can forge the header, so it is never believed from other connections.
 
 ## Logging
 
@@ -54,7 +57,7 @@ Everything is logged to the console (stdout) as one `key=value` line per event, 
 - Every request to a remote resource (catalogues, icon images, sites), with its status and how long it took, and any that fail. Query strings are left out.
 - Any request that ends in an error status, and internal errors.
 
-Each event names the user and their address. Behind a proxy the address is the first `X-Forwarded-For` entry, which a client can forge. Passwords are never logged.
+Each event names the user and their address, worked out as described under Guessing protection. Passwords are never logged.
 
 ## Development
 

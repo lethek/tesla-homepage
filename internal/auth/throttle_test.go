@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -90,5 +91,24 @@ func TestThrottleBoundsMemory(t *testing.T) {
 	}
 	if len(th.entries) > maxEntries {
 		t.Fatalf("%d entries", len(th.entries))
+	}
+}
+
+// Sign-in matches usernames with strings.EqualFold, so every spelling it
+// treats as one account must share one key.
+func TestKeyMatchesEqualFold(t *testing.T) {
+	names := []string{"ross", "ROSS", "Ross", "roſs", "roſſ", "ROſS", "θeta", "ϑeta", "ϴETA", "k", "K", "K", "µ", "μ", "Μ", "ǅ", "ǆ", "Ǆ", "İ", "i"}
+	for _, a := range names {
+		for _, b := range names {
+			if got, want := Key("user", a) == Key("user", b), strings.EqualFold(a, b); got != want {
+				t.Errorf("Key(%q)==Key(%q) is %v, EqualFold says %v", a, b, got, want)
+			}
+		}
+	}
+	if Key("user", " ross ") != Key("user", "ross") {
+		t.Error("surrounding space changes the key")
+	}
+	if Key("user", "x") == Key("ip", "x") {
+		t.Error("kinds share keys")
 	}
 }

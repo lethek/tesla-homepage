@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,9 @@ type Server struct {
 	pages    map[string]*template.Template
 	// throttle slows password guessing, at sign-in and when changing a password.
 	throttle *auth.Throttle
+	// TrustedProxies are the reverse proxies whose X-Forwarded-For header is
+	// believed. With none, the client's address is the connection's.
+	TrustedProxies []netip.Prefix
 }
 
 // view is the data passed to every template.
@@ -121,7 +125,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/library/local/{slug}/delete", s.admin(s.deleteLocalIcon))
 	mux.Handle("GET /library/local/{slug}", s.user(s.localImage))
 
-	return requestLog(http.NewCrossOriginProtection().Handler(securityHeaders(mux)))
+	return s.requestLog(http.NewCrossOriginProtection().Handler(securityHeaders(mux)))
 }
 
 func securityHeaders(next http.Handler) http.Handler {

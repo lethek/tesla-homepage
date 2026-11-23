@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // Throttle slows down guessing. Each key, such as a username or an address,
@@ -42,14 +43,30 @@ func NewThrottle() *Throttle {
 }
 
 // Key builds a key from a kind such as "user" or "ip" and a value. Values are
-// lower-cased and shortened so that case and length can't be used to dodge
-// the limit.
+// case-folded and shortened so that case and length can't be used to dodge
+// the limit. Two values get the same key exactly when strings.EqualFold says
+// they are equal, which is how sign-in matches usernames. Lower-casing is not
+// enough: "ross" and "roſs" (long s) name the same account but lower-case
+// differently, so each spelling would get its own allowance of guesses.
 func Key(kind, value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if len(value) > 64 {
-		value = value[:64]
+	runes := []rune(strings.TrimSpace(value))
+	if len(runes) > 64 {
+		runes = runes[:64]
 	}
-	return kind + ":" + value
+	for i, r := range runes {
+		runes[i] = foldRune(r)
+	}
+	return kind + ":" + string(runes)
+}
+
+// foldRune returns the smallest rune that r is equal to under simple case
+// folding, the same equivalence strings.EqualFold uses.
+func foldRune(r rune) rune {
+	least := r
+	for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+		least = min(least, f)
+	}
+	return least
 }
 
 // Wait returns how long the longest lockout among keys has left to run, or
