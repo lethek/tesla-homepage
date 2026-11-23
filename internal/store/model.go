@@ -80,6 +80,8 @@ func StarterHomepage() Homepage {
 			// Library names the icon file to use where the base icon is
 			// dark and would be hard to see on a dark tile.
 			Tile{Title: "Prime Video", URL: "https://www.primevideo.com", Library: "prime-video-light"},
+			Tile{Title: "Plex", URL: "https://app.plex.tv"},
+			Tile{Title: "Crunchyroll", URL: "https://www.crunchyroll.com"},
 		),
 		section("Music",
 			Tile{Title: "Spotify", URL: "https://open.spotify.com"},

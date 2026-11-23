@@ -385,7 +385,7 @@ func TestStarterUsesLibrary(t *testing.T) {
 
 	u, _ := e.store.UserByUsername("admin")
 	hp, _, _ := e.store.Homepage(u.ID)
-	found := map[string]bool{}
+	found, extras := map[string]bool{}, map[string]bool{}
 	for _, s := range hp.Sections {
 		for _, tile := range s.Tiles {
 			switch tile.Title {
@@ -409,6 +409,8 @@ func TestStarterUsesLibrary(t *testing.T) {
 				if tile.Library != "si:soundcloud" || !strings.HasSuffix(tile.Icon, ".svg") {
 					t.Errorf("SoundCloud: %+v", tile)
 				}
+			case "Plex", "Crunchyroll":
+				extras[tile.Title] = true
 			case "Reddit":
 				// Not in the fake library and the fake site has no icon.
 				if tile.Library != "" || tile.Icon != "" {
@@ -419,6 +421,9 @@ func TestStarterUsesLibrary(t *testing.T) {
 	}
 	if len(found) != 2 {
 		t.Fatalf("starter tiles: %+v", found)
+	}
+	if len(extras) != 2 {
+		t.Fatalf("starter set is missing Plex or Crunchyroll: %+v", extras)
 	}
 }
 
