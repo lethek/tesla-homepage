@@ -1,7 +1,6 @@
 package web
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -39,19 +38,14 @@ func (s *Server) edit(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !resumed {
 		s.audit(r, "edit mode started")
 	}
-	s.render(w, "edit", http.StatusOK, view{User: &u, Homepage: draft, Editing: true, Resumed: resumed, Dirty: s.draftDiffers(u.ID, draft)})
+	s.render(w, "edit", http.StatusOK, view{User: &u, Homepage: draft, Editing: true, Resumed: resumed, Stale: r.URL.Query().Get("stale") != "", Dirty: s.draftDiffers(u.ID, draft), Rev: store.Revision(draft)})
 }
 
 // draftDiffers reports whether the Draft has changes the published Homepage
 // lacks. If that can't be told, it says yes, so nothing is thrown away unasked.
 func (s *Server) draftDiffers(userID string, draft store.Homepage) bool {
 	published, ok, err := s.store.Homepage(userID)
-	if err != nil || !ok {
-		return true
-	}
-	a, errA := json.Marshal(published)
-	b, errB := json.Marshal(draft)
-	return errA != nil || errB != nil || !bytes.Equal(a, b)
+	return err != nil || !ok || store.Revision(published) != store.Revision(draft)
 }
 
 func (s *Server) editDone(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -64,8 +58,16 @@ func (s *Server) editDone(w http.ResponseWriter, r *http.Request, u store.User) 
 }
 
 func (s *Server) editCancel(w http.ResponseWriter, r *http.Request, u store.User) {
-	if err := s.store.DiscardDraft(u.ID); err != nil {
+	// A Draft with changes is only thrown away if the page saw its current
+	// state. Another tab may have changed it since this one loaded.
+	ok, err := s.store.DiscardDraftUnlessChanged(u.ID, r.FormValue("confirm_rev"))
+	if err != nil {
 		s.fail(w, err)
+		return
+	}
+	if !ok {
+		s.auditFailed(r, "edit cancel refused", "reason", "draft changed since this page loaded")
+		redirect(w, r, "/edit?stale=1")
 		return
 	}
 	s.audit(r, "edit cancelled")
@@ -88,7 +90,7 @@ func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request, u store.Use
 		s.fail(w, err)
 	default:
 		s.audit(r, event, attrs...)
-		s.fragment(w, "edit", "editor", view{User: &u, Homepage: hp, Editing: true, Dirty: s.draftDiffers(u.ID, hp)})
+		s.fragment(w, "edit", "editor", view{User: &u, Homepage: hp, Editing: true, Dirty: s.draftDiffers(u.ID, hp), Rev: store.Revision(hp)})
 	}
 }
 
@@ -115,7 +117,7 @@ func (s *Server) editOrder(w http.ResponseWriter, r *http.Request, u store.User)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	_, err := s.store.UpdateDraft(u.ID, func(hp *store.Homepage) error {
+	hp, err := s.store.UpdateDraft(u.ID, func(hp *store.Homepage) error {
 		if !hp.Reorder(order) {
 			return errBadRequest
 		}
@@ -131,6 +133,8 @@ func (s *Server) editOrder(w http.ResponseWriter, r *http.Request, u store.User)
 		s.fail(w, err)
 	default:
 		s.audit(r, "sections and tiles reordered")
+		// The page isn't re-rendered, so it learns the new revision here.
+		w.Header().Set("X-Draft-Rev", store.Revision(hp))
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -285,7 +289,7 @@ func (s *Server) addTile(w http.ResponseWriter, r *http.Request, u store.User) {
 		}
 		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon, Plate: in.plate, Padding: in.padding, Library: lib})
 		return nil
-	}, "tile", in.title, "url", in.url, "icon_source", in.source, "library_icon", lib)
+	}, "tile", in.title, "icon_source", in.source, "library_icon", lib)
 }
 
 func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -316,7 +320,7 @@ func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User
 		}
 		t.Title, t.URL, t.Icon, t.Plate, t.Padding, t.Library = in.title, in.url, icon, in.plate, in.padding, lib
 		return nil
-	}, "tile", in.title, "url", in.url, "icon_source", in.source, "library_icon", lib)
+	}, "tile", in.title, "icon_source", in.source, "library_icon", lib)
 }
 
 type tileInput struct {

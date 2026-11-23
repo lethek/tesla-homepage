@@ -262,6 +262,42 @@ func (s *Store) DiscardDraft(userID string) error {
 	return s.gcIcons()
 }
 
+// Revision identifies the contents of a Homepage or Draft. It changes
+// whenever they do.
+func Revision(hp Homepage) string {
+	b, _ := json.Marshal(hp)
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:8])
+}
+
+// DiscardDraftUnlessChanged removes the Draft like DiscardDraft, but only if
+// it is safe to throw away: it matches the published Homepage, or its
+// Revision is seenRev, which is the one the person agreed to discard. A Draft
+// that has changed since is kept and ok is false. Checking and removing happen
+// under one lock, so no change can slip in between.
+func (s *Store) DiscardDraftUnlessChanged(userID, seenRev string) (ok bool, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	draft, found, err := s.read(userID, "draft.json")
+	if err != nil {
+		return false, err
+	}
+	if found {
+		published, havePublished, err := s.read(userID, "homepage.json")
+		if err != nil {
+			return false, err
+		}
+		if (!havePublished || Revision(published) != Revision(draft)) && Revision(draft) != seenRev {
+			return false, nil
+		}
+	}
+	err = os.Remove(filepath.Join(s.userDir(userID), "draft.json"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
+	return true, s.gcIcons()
+}
+
 func (s *Store) read(userID, name string) (Homepage, bool, error) {
 	var hp Homepage
 	err := readJSON(filepath.Join(s.userDir(userID), name), &hp)

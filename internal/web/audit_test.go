@@ -115,3 +115,32 @@ func TestAuditLog(t *testing.T) {
 		}
 	}
 }
+
+// A bookmarked address can carry credentials or a token. None of it may reach
+// the console, whether in a tile event or in an icon download error.
+func TestSecretsInTileAddressesAreNotLogged(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	e.get(c, "/edit")
+	e.hxPost(c, "/edit/sections", url.Values{"title": {"Lab"}})
+	sid, _, _ := e.draftTile()
+	logs := captureLogs(t)
+
+	secretURL := "https://user:pw-s3cret@example.com/dash?token=tok-abc123"
+	e.hxPost(c, "/edit/sections/"+sid+"/tiles", url.Values{"title": {"NAS"}, "url": {secretURL}, "source": {"url"},
+		"icon_url": {"https://example.com/missing.png?sig=sig-xyz789"}, "plate": {"none"}})
+	e.hxPost(c, "/edit/sections/"+sid+"/tiles", url.Values{"title": {"NAS"}, "url": {secretURL}, "source": {"url"},
+		"icon_url": {"https://example.com/png/ok.png?sig=sig-xyz789"}, "plate": {"none"}})
+	_, _, tiles := e.draftTile()
+	for id := range tiles {
+		e.hxPost(c, "/edit/tiles/"+id, url.Values{"title": {"NAS2"}, "url": {secretURL}, "source": {"library"}, "plate": {"none"}})
+	}
+
+	wantLogged(t, logs, `msg="tile added"`, "tile=NAS")
+	wantLogged(t, logs, `msg="tile icon failed"`)
+	for _, secret := range []string{"pw-s3cret", "tok-abc123", "sig-xyz789", "user:pw"} {
+		if strings.Contains(logs.String(), secret) {
+			t.Errorf("log contains %q:\n%s", secret, logs)
+		}
+	}
+}

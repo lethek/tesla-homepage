@@ -115,30 +115,39 @@ func (r *Resolver) siteCandidates(ctx context.Context, siteURL string) []string 
 	return urls
 }
 
+// get downloads rawURL. Its errors name the address without any credentials
+// or query string, because they reach the console log and a URL can carry a
+// token.
 func (r *Resolver) get(ctx context.Context, rawURL string) ([]byte, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return nil, fmt.Errorf("invalid URL %q", rawURL)
+		return nil, errors.New("invalid URL: it must start with http:// or https://")
 	}
+	shown := (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path}).String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: invalid URL", shown)
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; homepage-icon-fetcher)")
 	resp, err := r.Client.Do(req)
 	if err != nil {
-		return nil, err
+		// The client's error repeats the full URL, query string included.
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return nil, fmt.Errorf("%s: %w", shown, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s: %s", rawURL, resp.Status)
+		return nil, fmt.Errorf("%s: %s", shown, resp.Status)
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxSize+1))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", shown, err)
 	}
 	if len(data) > MaxSize {
-		return nil, fmt.Errorf("%s: larger than %d bytes", rawURL, MaxSize)
+		return nil, fmt.Errorf("%s: larger than %d bytes", shown, MaxSize)
 	}
 	return data, nil
 }

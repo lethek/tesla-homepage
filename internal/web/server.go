@@ -45,7 +45,9 @@ type view struct {
 	Homepage store.Homepage
 	Editing  bool
 	Resumed  bool
-	Dirty    bool // the Draft differs from the published Homepage
+	Dirty    bool   // the Draft differs from the published Homepage
+	Rev      string // identifies the Draft's current contents
+	Stale    bool   // a Cancel was refused because the Draft had changed
 	Error    string
 	Message  string
 	Users    []store.User
@@ -434,17 +436,23 @@ const (
 	guessesPerIP   = 20
 )
 
-// lockedOut tells whether any of keys is locked out. If so it sends the
-// refusal, using render to show the page, and returns true.
-func (s *Server) lockedOut(w http.ResponseWriter, r *http.Request, what string, render func(status int, msg string), keys ...string) bool {
-	wait := s.throttle.Wait(keys...)
+// admit counts an attempt against limits before any password is checked, so
+// simultaneous attempts can't all get through before a failure is recorded.
+// If one of them is locked out it sends the refusal, using render to show the
+// page, and returns false. The attempt is refunded with s.throttle.Refund if
+// it succeeds.
+func (s *Server) admit(w http.ResponseWriter, r *http.Request, what string, render func(status int, msg string), limits ...auth.Limit) bool {
+	wait, started := s.throttle.Admit(limits...)
 	if wait <= 0 {
-		return false
+		return true
+	}
+	for _, key := range started {
+		s.auditFailed(r, "locked out after repeated failures", "key", key, "for", wait.String())
 	}
 	s.auditFailed(r, what+" throttled", "retry_after", wait.Round(time.Second).String())
 	w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
 	render(http.StatusTooManyRequests, "Too many failed attempts. Try again in "+humanWait(wait)+".")
-	return true
+	return false
 }
 
 func humanWait(d time.Duration) string {
@@ -458,24 +466,13 @@ func humanWait(d time.Duration) string {
 	}
 }
 
-// guessFailed counts a failed guess against each key and logs any lockout it
-// causes. Keys and limits alternate.
-func (s *Server) guessFailed(r *http.Request, keyLimits ...any) {
-	for i := 0; i < len(keyLimits); i += 2 {
-		key, limit := keyLimits[i].(string), keyLimits[i+1].(int)
-		if locked, d := s.throttle.Fail(key, limit); locked {
-			s.auditFailed(r, "locked out after repeated failures", "key", key, "for", d.String())
-		}
-	}
-}
-
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	userKey, ipKey := auth.Key("user", username), auth.Key("ip", clientIP(r))
-	// Check before spending time hashing, so a locked-out attacker costs little.
-	if s.lockedOut(w, r, "login", func(status int, msg string) {
+	// Admit before spending time hashing, so a locked-out attacker costs little.
+	if !s.admit(w, r, "login", func(status int, msg string) {
 		s.render(w, "login", status, view{Error: msg, Form: username})
-	}, userKey, ipKey) {
+	}, auth.Limit{Key: userKey, Max: guessesPerUser}, auth.Limit{Key: ipKey, Max: guessesPerIP}) {
 		return
 	}
 	u, err := s.store.UserByUsername(username)
@@ -490,11 +487,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 			reason = "unknown user"
 		}
 		s.auditFailed(r, "login failed", "username", username, "reason", reason)
-		s.guessFailed(r, userKey, guessesPerUser, ipKey, guessesPerIP)
 		s.render(w, "login", http.StatusUnauthorized, view{Error: "Wrong username or password.", Form: username})
 		return
 	}
+	// A success clears the account's count. The address gets back only this
+	// attempt, so signing in to an account of one's own between guesses
+	// doesn't wipe the address's failures.
 	s.throttle.Reset(userKey)
+	s.throttle.Refund(ipKey)
 	setActor(r, u.Username)
 	s.audit(r, "login")
 	s.sessions.SetCookie(w, r, u.ID, u.SessionVersion)
@@ -532,17 +532,17 @@ func (s *Server) passwordForm(w http.ResponseWriter, r *http.Request, u store.Us
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, u store.User) {
 	// Someone holding a stolen session could otherwise guess the current password.
 	key := auth.Key("password", u.Username)
-	if s.lockedOut(w, r, "password change", func(status int, msg string) {
+	if !s.admit(w, r, "password change", func(status int, msg string) {
 		s.render(w, "password", status, view{User: &u, Error: msg})
-	}, key) {
+	}, auth.Limit{Key: key, Max: guessesPerUser}) {
 		return
 	}
 	if !auth.CheckPassword(u.PasswordHash, r.FormValue("current")) {
 		s.auditFailed(r, "password change failed", "reason", "wrong current password")
-		s.guessFailed(r, key, guessesPerUser)
 		s.render(w, "password", http.StatusUnprocessableEntity, view{User: &u, Error: "Current password is wrong."})
 		return
 	}
+	s.throttle.Reset(key) // the current password was right
 	password := r.FormValue("password")
 	if msg := validateCredentials(u.Username, password, r.FormValue("confirm")); msg != "" {
 		s.auditFailed(r, "password change failed", "reason", msg)

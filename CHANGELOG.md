@@ -9,7 +9,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Custom icons: Admins can add, edit and delete their own icons on the Icon library page, from an upload, an image URL or a site's own icon. They are kept in `library-local.json` and `library-icons/` on the data volume, apart from the downloaded catalogues, and are searched together with them.
 - Audit log on the console: sign-ins, sign-outs, password changes and resets, user, tile, section and Icon library changes, every request to a remote resource, and all errors.
 - Protection against password guessing: failed sign-ins and failed current-password checks are counted per username and per address, and lock out for a minute, doubling up to an hour, after 5 and 20 failures in 15 minutes. All spellings of a username that sign-in accepts share one count. `X-Forwarded-For` is only believed from proxies listed in the new `TRUSTED_PROXIES` setting.
-- Escape leaves Edit mode by cancelling the Draft, after asking if it has unsaved changes.
+- Escape leaves Edit mode by cancelling the Draft, after asking if it has unsaved changes. A Cancel from a tab that hasn't seen the Draft's latest changes, for example after editing in another tab, is refused instead of discarding them.
 
 ### Changed
 

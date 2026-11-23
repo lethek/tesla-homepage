@@ -37,7 +37,7 @@ Admins can also add custom icons (name, aliases, tags and an image) from the sam
 
 Passwords are stored as salted bcrypt hashes, so precomputed (rainbow table) attacks don't apply. Guessing is slowed by lockouts, which are logged as `WARN` lines:
 
-- 5 failed sign-ins for one username within 15 minutes lock that username, and 20 from one address lock that address. A locked key gets `429 Too many failed attempts`, even with the right password, until its lockout ends.
+- A username gets 5 sign-in attempts in 15 minutes, and an address gets 20. Each attempt is counted before the password is checked, so a burst of simultaneous guesses can't get more than that far, and a successful sign-in gives its attempt back. The next attempt after the allowance is used up starts a lockout. A locked key gets `429 Too many failed attempts`, even with the right password, until its lockout ends.
 - A lockout lasts 1 minute, then doubles each time the same key is locked again, up to 1 hour. Nothing is locked for good, and a successful sign-in clears the username's count.
 - Wrong guesses of the current password on the Change password page are limited the same way.
 - Names that don't exist are counted too, so the lockout doesn't reveal which names are real.

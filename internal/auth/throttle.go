@@ -8,7 +8,9 @@ import (
 )
 
 // Throttle slows down guessing. Each key, such as a username or an address,
-// may fail Limit times within Window. After that it is locked out for
+// may make Limit attempts within Window, counting every attempt that is
+// admitted and giving back the ones that succeed. Once a key has used them
+// up, the next attempt locks it out for
 // BaseLock, and for twice as long each time it is locked out again, up to
 // MaxLock. Nothing is locked for good, so an attacker can delay a real user
 // but not shut them out.
@@ -69,25 +71,23 @@ func foldRune(r rune) rune {
 	return least
 }
 
-// Wait returns how long the longest lockout among keys has left to run, or
-// zero if none is locked.
-func (t *Throttle) Wait(keys ...string) time.Duration {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	now := t.Now()
-	var wait time.Duration
-	for _, k := range keys {
-		if e := t.entries[k]; e != nil && e.until.After(now) {
-			wait = max(wait, e.until.Sub(now))
-		}
-	}
-	return wait
+// Limit is how many attempts a key gets per window.
+type Limit struct {
+	Key string
+	Max int
 }
 
-// Fail records a failed attempt against key, which is allowed limit failures
-// per window. It reports whether this failure caused a lockout, and for how
-// long.
-func (t *Throttle) Fail(key string, limit int) (locked bool, d time.Duration) {
+// Admit asks to make one attempt. It counts the attempt against every limit
+// before the password is checked, in one step under one lock. Counting only
+// after a failure would let a burst of simultaneous attempts all pass the
+// check before any failure was recorded.
+//
+// If every key has attempts left, they are all charged and wait is zero. The
+// caller must call Refund once the attempt succeeds, so that only failures
+// stay counted. If any key is locked out, or has used up its attempts, nothing
+// is charged and wait is how long to refuse for. started lists the keys whose
+// lockout began with this call.
+func (t *Throttle) Admit(limits ...Limit) (wait time.Duration, started []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	now := t.Now()
@@ -97,31 +97,67 @@ func (t *Throttle) Fail(key string, limit int) (locked bool, d time.Duration) {
 	if len(t.entries) >= maxEntries {
 		t.prune(now)
 	}
-	e := t.entries[key]
-	if e == nil {
-		e = &entry{}
-		t.entries[key] = e
-	}
-	e.touched = now
-	if e.fails == 0 || now.Sub(e.first) > t.Window {
-		if !e.until.After(now) && now.Sub(e.first) > t.Window+t.MaxLock {
-			e.lockouts = 0 // quiet for long enough
+	for _, l := range limits {
+		if e := t.entries[l.Key]; e != nil && e.until.After(now) {
+			wait = max(wait, e.until.Sub(now))
 		}
-		e.fails, e.first = 0, now
 	}
-	e.fails++
-	if e.fails < limit {
-		return false, 0
+	if wait > 0 {
+		return wait, nil
 	}
-	d = t.BaseLock
-	for i := 0; i < e.lockouts && d < t.MaxLock; i++ {
-		d *= 2
+	for _, l := range limits {
+		e := t.entries[l.Key]
+		if e == nil {
+			continue
+		}
+		if now.Sub(e.first) > t.Window {
+			if now.Sub(e.first) > t.Window+t.MaxLock {
+				e.lockouts = 0 // quiet for long enough
+			}
+			e.fails = 0
+		}
+		if e.fails < l.Max {
+			continue
+		}
+		d := t.BaseLock
+		for i := 0; i < e.lockouts && d < t.MaxLock; i++ {
+			d *= 2
+		}
+		d = min(d, t.MaxLock)
+		e.lockouts++
+		e.fails = 0
+		e.until = now.Add(d)
+		wait = max(wait, d)
+		started = append(started, l.Key)
 	}
-	d = min(d, t.MaxLock)
-	e.lockouts++
-	e.fails = 0
-	e.until = now.Add(d)
-	return true, d
+	if wait > 0 {
+		return wait, started
+	}
+	for _, l := range limits {
+		e := t.entries[l.Key]
+		if e == nil {
+			e = &entry{}
+			t.entries[l.Key] = e
+		}
+		if e.fails == 0 {
+			e.first = now
+		}
+		e.fails++
+		e.touched = now
+	}
+	return 0, nil
+}
+
+// Refund gives back the attempt Admit charged to each key, after the attempt
+// succeeded.
+func (t *Throttle) Refund(keys ...string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, k := range keys {
+		if e := t.entries[k]; e != nil && e.fails > 0 {
+			e.fails--
+		}
+	}
 }
 
 // Reset forgets key's failures and lockouts, after a successful sign-in.

@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -28,14 +29,15 @@ func TestLoginIsThrottledPerUsername(t *testing.T) {
 	e.signedInAdmin()
 	logs := captureLogs(t)
 
-	// Five wrong passwords lock the account, even against the right one.
+	// Five wrong passwords use up the account's attempts. The next one, even
+	// with the right password, starts the lockout and is refused.
 	for i := 1; i <= 5; i++ {
 		if resp, _ := e.attempt("admin", "wrong-guess"); resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("guess %d: %d", i, resp.StatusCode)
 		}
 	}
-	wantLogged(t, logs, "level=WARN", `msg="locked out after repeated failures"`, "key=user:ADMIN")
 	resp, body := e.attempt("admin", "password1")
+	wantLogged(t, logs, "level=WARN", `msg="locked out after repeated failures"`, "key=user:ADMIN")
 	if resp.StatusCode != http.StatusTooManyRequests || !strings.Contains(body, "Too many failed attempts") || resp.Header.Get("Retry-After") == "" {
 		t.Fatalf("locked login: %d %s", resp.StatusCode, body)
 	}
@@ -200,4 +202,45 @@ func TestForwardedForIsReadOnlyFromTrustedProxies(t *testing.T) {
 	logs2 := captureLogs(t)
 	e.loginFrom("not-an-address")
 	wantLogged(t, logs2, `msg="login failed"`, "ip=127.0.0.1")
+}
+
+// Simultaneous guesses must not all get checked before the first failure is
+// counted. Only the account's allowance reaches the password check.
+func TestSimultaneousLoginsAreLimitedBeforeThePasswordCheck(t *testing.T) {
+	e, _ := clockedEnv(t)
+	e.signedInAdmin()
+	logs := captureLogs(t)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	codes := map[int]int{}
+	start := make(chan struct{})
+	for i := 0; i < 40; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			resp, _ := e.attempt("admin", "wrong-guess")
+			mu.Lock()
+			codes[resp.StatusCode]++
+			mu.Unlock()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if codes[http.StatusUnauthorized] != 5 || codes[http.StatusTooManyRequests] != 35 {
+		t.Fatalf("responses: %v, want 5 checked and 35 refused", codes)
+	}
+	if n := strings.Count(logs.String(), `msg="login failed"`); n != 5 {
+		t.Fatalf("%d passwords were checked, want 5", n)
+	}
+}
+
+// Signing in with the right password doesn't use up attempts.
+func TestSuccessfulLoginsDontCountTowardsTheLimits(t *testing.T) {
+	e, _ := clockedEnv(t)
+	e.signedInAdmin()
+	for i := 0; i < 30; i++ { // more than the address limit of 20
+		e.login("admin", "password1")
+	}
 }

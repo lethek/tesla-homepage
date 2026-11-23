@@ -261,11 +261,13 @@ func TestDraftCancelAndDone(t *testing.T) {
 	}
 
 	// Leaving and coming back resumes the Draft.
-	if _, body := e.get(c, "/edit"); !strings.Contains(body, "unsaved changes") || !strings.Contains(body, "Streaming") {
+	_, body := e.get(c, "/edit")
+	if !strings.Contains(body, "unsaved changes") || !strings.Contains(body, "Streaming") {
 		t.Fatal("Draft not resumed")
 	}
 
-	resp, _ := e.post(c, "/edit/cancel", nil)
+	// Cancelling a changed Draft says which state the page saw.
+	resp, _ := e.post(c, "/edit/cancel", url.Values{"confirm_rev": {draftRev(t, body)}})
 	wantRedirect(t, resp, "/")
 	if _, body := e.get(c, "/"); strings.Contains(body, "Streaming") {
 		t.Fatal("cancelled change published")
@@ -276,7 +278,7 @@ func TestDraftCancelAndDone(t *testing.T) {
 	e.hxPost(c, "/edit/settings", url.Values{"title": {"Car"}, "overflow": {"scroll"}})
 	resp, _ = e.post(c, "/edit/done", nil)
 	wantRedirect(t, resp, "/")
-	_, body := e.get(c, "/")
+	_, body = e.get(c, "/")
 	if !strings.Contains(body, "Streaming") || !strings.Contains(body, "overflow-scroll") || !strings.Contains(body, "<span>Car</span>") {
 		t.Fatal("published Homepage missing changes")
 	}

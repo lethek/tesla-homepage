@@ -1,9 +1,9 @@
 {{define "body"}}
 <div class="editbar">
   <strong>Edit mode</strong>
-  {{if .Resumed}}<span class="notice">You have unsaved changes from last time.</span>{{end}}
+  {{if .Stale}}<span class="notice">This draft was changed in another tab, so it wasn't discarded. Check it, then cancel again.</span>{{else if .Resumed}}<span class="notice">You have unsaved changes from last time.</span>{{end}}
   <span class="spacer"></span>
-  <form method="post" action="/edit/cancel"><button type="submit">Cancel</button></form>
+  <form method="post" action="/edit/cancel"><input type="hidden" name="confirm_rev" value=""><button type="submit">Cancel</button></form>
   <form method="post" action="/edit/done"><button type="submit" class="primary">Done</button></form>
 </div>
 <main hx-target="#editor" hx-swap="outerHTML">
@@ -13,7 +13,7 @@
 {{end}}
 
 {{define "editor"}}
-<div id="editor" class="homepage editing overflow-{{.Homepage.Overflow}}" data-dirty="{{.Dirty}}">
+<div id="editor" class="homepage editing overflow-{{.Homepage.Overflow}}" data-dirty="{{.Dirty}}" data-rev="{{.Rev}}">
   <form class="settings" hx-post="/edit/settings" hx-trigger="change">
     <label>Title <input name="title" value="{{.Homepage.Title}}" maxlength="60"></label>
     <fieldset class="toggle">

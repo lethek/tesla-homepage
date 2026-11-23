@@ -21,7 +21,13 @@
     if (e.target.getAttribute("action") !== "/edit/cancel") return;
     var editor = document.getElementById("editor");
     if (editor && editor.dataset.dirty === "true" &&
-        !confirm("Discard your unsaved changes and leave Edit mode?")) e.preventDefault();
+        !confirm("Discard your unsaved changes and leave Edit mode?")) {
+      e.preventDefault();
+      return;
+    }
+    // The server discards a changed Draft only if this is the state the page
+    // last saw, so a change made in another tab isn't thrown away unseen.
+    e.target.elements.confirm_rev.value = editor ? editor.dataset.rev : "";
   });
 
   // Clock
@@ -163,7 +169,11 @@
       body: JSON.stringify(order)
     }).then(function (r) {
       if (!r.ok) location.reload();
-      else document.getElementById("editor").dataset.dirty = "true";
+      else {
+        var editor = document.getElementById("editor");
+        editor.dataset.dirty = "true";
+        editor.dataset.rev = r.headers.get("X-Draft-Rev") || editor.dataset.rev;
+      }
     }, function () {
       location.reload();
     });
