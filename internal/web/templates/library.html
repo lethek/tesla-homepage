@@ -24,13 +24,7 @@
     <li>
       <details>
         <summary><img src="{{.Preview}}" alt="" width="32" height="32"> {{.Name}}</summary>
-        <form method="post" action="/admin/library/local/{{.Slug}}" enctype="multipart/form-data" class="custom-form">
-          <label>Name <input name="name" value="{{.Name}}" maxlength="40" required></label>
-          <label>Also known as <input name="aliases" value="{{.Aliases}}" placeholder="Comma separated"></label>
-          <label>Tags <input name="tags" value="{{.Tags}}" placeholder="Comma separated"></label>
-          <label>Replace image <input name="image" type="file" accept="image/*"></label>
-          <button type="submit" class="primary">Save</button>
-        </form>
+        {{template "custom-form" .}}
         <form method="post" action="/admin/library/local/{{.Slug}}/delete" onsubmit="return confirm('Delete this custom icon? Tiles that use it keep their copy.')">
           <button type="submit" class="danger">Delete</button>
         </form>
@@ -42,15 +36,39 @@
   </ul>
   {{end}}
   <h3>Add a custom icon</h3>
-  <form method="post" action="/admin/library/local" enctype="multipart/form-data" class="custom-form">
-    <label>Name <input name="name" maxlength="40" required></label>
-    <label>Also known as <input name="aliases" placeholder="Comma separated"></label>
-    <label>Tags <input name="tags" placeholder="Comma separated"></label>
-    <label>Image <input name="image" type="file" accept="image/*" required></label>
-    <button type="submit" class="primary">Add icon</button>
-  </form>
+  {{template "custom-form" .Form.New}}
   <h2>Sources and licences</h2>
   {{template "icon-credits"}}
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>
 </main>
+{{end}}
+
+{{define "custom-form"}}
+{{$id := or .Slug "new"}}
+<form method="post" action="/admin/library/local{{if .Slug}}/{{.Slug}}{{end}}" enctype="multipart/form-data" class="custom-form tile-form" data-source="{{if .Slug}}keep{{else}}upload{{end}}">
+  <label>Name <input name="name" value="{{.Name}}" maxlength="40" required></label>
+  <label>Also known as <input name="aliases" value="{{.Aliases}}" placeholder="Comma separated"></label>
+  <label>Tags <input name="tags" value="{{.Tags}}" placeholder="Comma separated"></label>
+  <fieldset class="icon-source">
+    <legend>Image</legend>
+    <div class="tabs">
+      {{if .Slug}}<input type="radio" name="source" id="src-{{$id}}-keep" value="keep" checked><label for="src-{{$id}}-keep">Current</label>{{end}}
+      <input type="radio" name="source" id="src-{{$id}}-upload" value="upload" {{if not .Slug}}checked{{end}}><label for="src-{{$id}}-upload">Upload</label>
+      <input type="radio" name="source" id="src-{{$id}}-url" value="url"><label for="src-{{$id}}-url">Image URL</label>
+      <input type="radio" name="source" id="src-{{$id}}-site" value="site"><label for="src-{{$id}}-site">From site</label>
+    </div>
+    {{if .Slug}}<div class="panel panel-keep current-icon"><img src="{{.Preview}}" alt="" width="40" height="40"> Keep the current image.</div>{{end}}
+    <div class="panel panel-upload">
+      <label>Image file <input name="image" type="file" accept="image/*"></label>
+    </div>
+    <div class="panel panel-url">
+      <label>Image web address <input name="icon_url" type="url" placeholder="https://"></label>
+    </div>
+    <div class="panel panel-site">
+      <label>Site web address <input name="site_url" type="url" placeholder="https://"></label>
+      <p class="hint">The site's own icon is fetched when you save.</p>
+    </div>
+  </fieldset>
+  <button type="submit" class="primary">{{if .Slug}}Save{{else}}Add icon{{end}}</button>
+</form>
 {{end}}

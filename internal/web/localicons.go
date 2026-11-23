@@ -1,11 +1,13 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/lethek/tesla-homepage/internal/icons"
 	"github.com/lethek/tesla-homepage/internal/library"
@@ -57,18 +59,41 @@ func (s *Server) readLocalForm(w http.ResponseWriter, r *http.Request) (name str
 	name = r.FormValue("name")
 	aliases = strings.Split(r.FormValue("aliases"), ",")
 	tags = strings.Split(r.FormValue("tags"), ",")
-	file, _, ferr := r.FormFile("image")
-	if ferr != nil {
-		return name, aliases, tags, nil, "", nil
-	}
-	defer file.Close()
-	image, ferr = io.ReadAll(io.LimitReader(file, icons.MaxSize+1))
-	if ferr != nil || len(image) > icons.MaxSize {
-		return "", nil, nil, nil, "", errTooLarge
-	}
-	ext, ok := icons.Ext(image)
-	if !ok {
-		return "", nil, nil, nil, "", icons.ErrNotImage
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	switch r.FormValue("source") {
+	case "url":
+		raw := strings.TrimSpace(r.FormValue("icon_url"))
+		if !isWebURL(raw) {
+			return "", nil, nil, nil, "", errors.New("the image URL must start with http:// or https://")
+		}
+		image, ext, err = s.icons.Fetch(ctx, raw)
+		if err != nil {
+			return "", nil, nil, nil, "", err
+		}
+	case "site":
+		raw := strings.TrimSpace(r.FormValue("site_url"))
+		if !isWebURL(raw) {
+			return "", nil, nil, nil, "", errors.New("the site address must start with http:// or https://")
+		}
+		var ok bool
+		if image, ext, ok = s.icons.FetchSite(ctx, raw); !ok {
+			return "", nil, nil, nil, "", errors.New("that site has no usable icon")
+		}
+	case "upload", "":
+		file, _, ferr := r.FormFile("image")
+		if ferr != nil {
+			break
+		}
+		defer file.Close()
+		image, ferr = io.ReadAll(io.LimitReader(file, icons.MaxSize+1))
+		if ferr != nil || len(image) > icons.MaxSize {
+			return "", nil, nil, nil, "", errTooLarge
+		}
+		var ok bool
+		if ext, ok = icons.Ext(image); !ok {
+			return "", nil, nil, nil, "", icons.ErrNotImage
+		}
 	}
 	return name, aliases, tags, image, ext, nil
 }
@@ -76,14 +101,18 @@ func (s *Server) readLocalForm(w http.ResponseWriter, r *http.Request) (name str
 // saveLocalIcon adds a custom icon, or changes the one named by the path's slug.
 func (s *Server) saveLocalIcon(w http.ResponseWriter, r *http.Request, u store.User) {
 	name, aliases, tags, image, ext, err := s.readLocalForm(w, r)
-	if err == nil {
-		_, err = s.library.SaveLocal(r.PathValue("slug"), name, aliases, tags, image, ext)
-	}
 	if err != nil {
+		// Whatever went wrong reading the form or fetching the image is the
+		// Admin's input to fix.
+		s.renderLibrary(w, u, http.StatusBadRequest, "", "Couldn't save that icon: "+err.Error())
+		return
+	}
+	if _, err := s.library.SaveLocal(r.PathValue("slug"), name, aliases, tags, image, ext); err != nil {
 		status := http.StatusBadRequest
-		if errors.Is(err, library.ErrLocalNotFound) {
+		switch {
+		case errors.Is(err, library.ErrLocalNotFound):
 			status = http.StatusNotFound
-		} else if !isLocalInputError(err) {
+		case !errors.Is(err, library.ErrLocalExists) && !errors.Is(err, library.ErrLocalName) && !errors.Is(err, library.ErrLocalImage):
 			log.Printf("saving custom icon: %v", err)
 			status = http.StatusInternalServerError
 		}
@@ -91,12 +120,6 @@ func (s *Server) saveLocalIcon(w http.ResponseWriter, r *http.Request, u store.U
 		return
 	}
 	redirect(w, r, "/admin/library?done=saved")
-}
-
-func isLocalInputError(err error) bool {
-	return errors.Is(err, library.ErrLocalExists) || errors.Is(err, library.ErrLocalName) ||
-		errors.Is(err, library.ErrLocalImage) || errors.Is(err, icons.ErrNotImage) ||
-		errors.Is(err, errTooLarge)
 }
 
 var errTooLarge = errors.New("the upload is too large, icons must be 2 MB or less")

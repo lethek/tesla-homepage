@@ -85,6 +85,12 @@
     });
   }
 
+  // Custom icon forms on the Icon library page: image source tabs.
+  document.addEventListener("change", function (e) {
+    var form = e.target.closest(".custom-form");
+    if (form && e.target.name === "source") form.dataset.source = e.target.value;
+  });
+
   // A search response can arrive after the user has tapped an icon, for example
   // when tapping blurs the address field and starts a search. Keep the user's
   // pick when the results are replaced.

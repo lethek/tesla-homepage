@@ -321,6 +321,7 @@ type libraryStatus struct {
 	Fetched time.Time
 	Counts  []library.Count
 	Local   []localIcon
+	New     localIcon // the blank form for adding
 }
 
 func (s *Server) libraryPage(w http.ResponseWriter, r *http.Request, u store.User) {

@@ -170,3 +170,54 @@ func TestCustomIconValidation(t *testing.T) {
 		t.Fatal("non-admin can't find custom icons")
 	}
 }
+
+func TestCustomIconFromURLAndSite(t *testing.T) {
+	e := newEnv(t)
+	admin := e.signedInAdmin()
+
+	post := func(path string, fields map[string]string) *http.Response {
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		for k, v := range fields {
+			mw.WriteField(k, v)
+		}
+		mw.Close()
+		resp, _ := e.do(admin, http.MethodPost, path, &buf, mw.FormDataContentType(), false)
+		return resp
+	}
+
+	// An image URL is downloaded and stored.
+	resp := post("/admin/library/local", map[string]string{"name": "Remote", "source": "url", "icon_url": "https://example.com/png/remote.png"})
+	wantRedirect(t, resp, "/admin/library?done=saved")
+	if _, b := e.get(admin, "/library/local/remote"); b != pngHeader+"remote.png" {
+		t.Fatalf("downloaded image: %q", b)
+	}
+
+	// Replacing the image from a URL works on an existing icon too.
+	resp = post("/admin/library/local/remote", map[string]string{"name": "Remote", "source": "url", "icon_url": "https://example.com/png/other.png"})
+	wantRedirect(t, resp, "/admin/library?done=saved")
+	if _, b := e.get(admin, "/library/local/remote"); b != pngHeader+"other.png" {
+		t.Fatalf("replaced image: %q", b)
+	}
+
+	// "keep" leaves the image alone.
+	post("/admin/library/local/remote", map[string]string{"name": "Renamed", "source": "keep"})
+	if _, b := e.get(admin, "/library/local/remote"); b != pngHeader+"other.png" {
+		t.Fatalf("kept image: %q", b)
+	}
+
+	// Failures are reported and add nothing. The fake CDN has no site icons.
+	for name, fields := range map[string]map[string]string{
+		"bad url":     {"name": "A", "source": "url", "icon_url": "ftp://x"},
+		"missing url": {"name": "B", "source": "url", "icon_url": "https://example.com/missing.png"},
+		"site":        {"name": "C", "source": "site", "site_url": "https://example.com"},
+		"bad site":    {"name": "D", "source": "site", "site_url": "nope"},
+	} {
+		if resp := post("/admin/library/local", fields); resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: got %d", name, resp.StatusCode)
+		}
+	}
+	if meta, _ := os.ReadFile(e.store.LocalLibraryPath()); strings.Count(string(meta), `"s":`) != 1 {
+		t.Fatalf("failed adds left icons behind: %s", meta)
+	}
+}

@@ -57,9 +57,43 @@ func (r *Resolver) FromURL(ctx context.Context, imageURL string) (string, error)
 // apple-touch-icons (largest first), then /apple-touch-icon.png, then the
 // declared icons, then /favicon.ico. It returns "" if none is usable.
 func (r *Resolver) FromSite(ctx context.Context, siteURL string) string {
+	for _, u := range r.siteCandidates(ctx, siteURL) {
+		if name, err := r.FromURL(ctx, u); err == nil {
+			return name
+		}
+	}
+	return ""
+}
+
+// Fetch downloads an image and returns its bytes and file extension without
+// storing it.
+func (r *Resolver) Fetch(ctx context.Context, imageURL string) (data []byte, ext string, err error) {
+	if data, err = r.get(ctx, imageURL); err != nil {
+		return nil, "", err
+	}
+	ext, ok := imageExt(data)
+	if !ok {
+		return nil, "", ErrNotImage
+	}
+	return data, ext, nil
+}
+
+// FetchSite finds a site's icon the way FromSite does, but returns the image
+// without storing it. ok is false if the site has no usable icon.
+func (r *Resolver) FetchSite(ctx context.Context, siteURL string) (data []byte, ext string, ok bool) {
+	for _, u := range r.siteCandidates(ctx, siteURL) {
+		if data, ext, err := r.Fetch(ctx, u); err == nil {
+			return data, ext, true
+		}
+	}
+	return nil, "", false
+}
+
+// siteCandidates lists the URLs FromSite tries, in order.
+func (r *Resolver) siteCandidates(ctx context.Context, siteURL string) []string {
 	base, err := url.Parse(siteURL)
 	if err != nil {
-		return ""
+		return nil
 	}
 	var touch, other []candidate
 	if page, err := r.get(ctx, siteURL); err == nil {
@@ -78,13 +112,7 @@ func (r *Resolver) FromSite(ctx context.Context, siteURL string) string {
 	urls = append(urls, base.ResolveReference(&url.URL{Path: "/apple-touch-icon.png"}).String())
 	add(other)
 	urls = append(urls, base.ResolveReference(&url.URL{Path: "/favicon.ico"}).String())
-
-	for _, u := range urls {
-		if name, err := r.FromURL(ctx, u); err == nil {
-			return name
-		}
-	}
-	return ""
+	return urls
 }
 
 func (r *Resolver) get(ctx context.Context, rawURL string) ([]byte, error) {
