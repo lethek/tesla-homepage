@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/net/html"
 )
@@ -31,8 +31,12 @@ type Resolver struct {
 	Save   Saver
 }
 
-func New(save Saver) *Resolver {
-	return &Resolver{Client: &http.Client{Timeout: 10 * time.Second}, Save: save}
+// New returns a Resolver whose downloads refuse private and local addresses,
+// except those inside allow. Anyone who can add a Tile can name a URL to
+// fetch, so without the refusal they could reach, and read images from,
+// services that only the server can see.
+func New(save Saver, allow []netip.Prefix) *Resolver {
+	return &Resolver{Client: NewClient(allow), Save: save}
 }
 
 // FromUpload validates and stores uploaded icon data.
@@ -135,6 +139,11 @@ func (r *Resolver) get(ctx context.Context, rawURL string) ([]byte, error) {
 		var ue *url.Error
 		if errors.As(err, &ue) {
 			err = ue.Err
+		}
+		// One fixed message for every refused destination, so the form can't
+		// be used to tell which internal hosts or ports exist.
+		if errors.Is(err, ErrBlockedAddress) {
+			err = ErrBlockedAddress
 		}
 		return nil, fmt.Errorf("%s: %w", shown, err)
 	}

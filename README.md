@@ -15,8 +15,15 @@ Open the app in a browser. The first visitor creates the admin account, and the 
 | `ADDR`     | `:8080`             | Listen address                                  |
 | `DATA_DIR` | `/data` (container) | Users, homepages, icons and the session secret |
 | `TRUSTED_PROXIES` | none | Reverse proxies whose `X-Forwarded-For` is believed, as addresses or CIDR ranges |
+| `ICON_ALLOWED_NETWORKS` | none | Private or local networks that icons may be fetched from, as addresses or CIDR ranges |
 
 Put it behind HTTPS in production. Session cookies get the `Secure` flag when the request arrives over TLS or with `X-Forwarded-Proto: https`.
+
+## Fetching icons
+
+Anyone who can edit a tile can make the server download an image from an address they choose (the Image URL and From site options). To stop that being used to reach services only the server can see, the server refuses to fetch from loopback, private (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`), link-local (including `169.254.169.254` cloud metadata), carrier-grade NAT (`100.64/10`, used by Tailscale), multicast and unspecified addresses. The check runs on the address actually connected to, after DNS, and again on every redirect, so a name that resolves to an internal address is refused too. Every refusal gives the same message, so it can't be used to find out which internal hosts or ports exist. Proxy environment variables (`HTTP_PROXY`) are not used for icon downloads.
+
+If your tiles point at internal services and you want their icons fetched with From site, list those networks in `ICON_ALLOWED_NETWORKS`, for example `192.168.1.0/24,10.0.0.5`. Everything listed becomes reachable by every user who can edit a tile, so keep the list narrow.
 
 ## Icon library
 

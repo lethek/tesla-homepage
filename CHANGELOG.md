@@ -13,6 +13,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- **Breaking for internal icons:** icon downloads (Image URL, From site, custom icons) now refuse loopback, private, link-local, carrier-grade NAT and multicast addresses, including after DNS and redirects, so tile editors can't use the server to reach internal services. Set `ICON_ALLOWED_NETWORKS` to the networks whose icons should still be fetched. Proxy environment variables are no longer used for these downloads.
 - A tile saved from the Library tab with no icon picked now gets the letter placeholder and no longer contacts the site. Use the From site tab to fetch the site's icon.
 
 ## [0.1.0] - 2026-11-23

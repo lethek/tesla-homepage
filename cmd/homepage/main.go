@@ -40,7 +40,12 @@ func main() {
 	}
 	lib := library.New(st.LibraryCachePath(), store.WriteFile)
 	lib.LocalPath, lib.LocalDir = st.LocalLibraryPath(), st.LocalLibraryDir()
-	resolver := icons.New(st.SaveIcon)
+	// Icons are never fetched from private or local networks unless listed here.
+	allowIcons, err := parsePrefixes(os.Getenv("ICON_ALLOWED_NETWORKS"))
+	if err != nil {
+		log.Fatalf("ICON_ALLOWED_NETWORKS: %v", err)
+	}
+	resolver := icons.New(st.SaveIcon, allowIcons)
 	// Log every request to a remote resource.
 	lib.Client.Transport = httplog.Transport(lib.Client.Transport)
 	resolver.Client.Transport = httplog.Transport(resolver.Client.Transport)
@@ -49,7 +54,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if srv.TrustedProxies, err = parseProxies(os.Getenv("TRUSTED_PROXIES")); err != nil {
+	if srv.TrustedProxies, err = parsePrefixes(os.Getenv("TRUSTED_PROXIES")); err != nil {
 		log.Fatalf("TRUSTED_PROXIES: %v", err)
 	}
 
@@ -75,8 +80,8 @@ func main() {
 	slog.Info("stopped")
 }
 
-// parseProxies reads a comma separated list of addresses and CIDR ranges.
-func parseProxies(list string) ([]netip.Prefix, error) {
+// parsePrefixes reads a comma separated list of addresses and CIDR ranges.
+func parsePrefixes(list string) ([]netip.Prefix, error) {
 	var out []netip.Prefix
 	for _, item := range strings.Split(list, ",") {
 		if item = strings.TrimSpace(item); item == "" {
