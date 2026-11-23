@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -104,21 +104,31 @@ func (s *Server) saveLocalIcon(w http.ResponseWriter, r *http.Request, u store.U
 	if err != nil {
 		// Whatever went wrong reading the form or fetching the image is the
 		// Admin's input to fix.
+		s.auditFailed(r, "custom icon save failed", "slug", r.PathValue("slug"), "source", r.FormValue("source"), "err", err)
 		s.renderLibrary(w, u, http.StatusBadRequest, "", "Couldn't save that icon: "+err.Error())
 		return
 	}
-	if _, err := s.library.SaveLocal(r.PathValue("slug"), name, aliases, tags, image, ext); err != nil {
+	adding := r.PathValue("slug") == ""
+	saved, err := s.library.SaveLocal(r.PathValue("slug"), name, aliases, tags, image, ext)
+	if err != nil {
 		status := http.StatusBadRequest
 		switch {
 		case errors.Is(err, library.ErrLocalNotFound):
 			status = http.StatusNotFound
 		case !errors.Is(err, library.ErrLocalExists) && !errors.Is(err, library.ErrLocalName) && !errors.Is(err, library.ErrLocalImage):
-			log.Printf("saving custom icon: %v", err)
+			slog.Error("custom icon save failed", auditArgs(r, []any{"slug", r.PathValue("slug"), "err", err})...)
 			status = http.StatusInternalServerError
+		default:
+			s.auditFailed(r, "custom icon save failed", "slug", r.PathValue("slug"), "err", err)
 		}
 		s.renderLibrary(w, u, status, "", "Couldn't save that icon: "+err.Error())
 		return
 	}
+	event := "custom icon changed"
+	if adding {
+		event = "custom icon added"
+	}
+	s.audit(r, event, "slug", saved.Slug, "name", saved.Name, "source", r.FormValue("source"), "image_replaced", len(image) > 0)
 	redirect(w, r, "/admin/library?done=saved")
 }
 
@@ -133,5 +143,6 @@ func (s *Server) deleteLocalIcon(w http.ResponseWriter, r *http.Request, u store
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "custom icon deleted", "slug", r.PathValue("slug"))
 	redirect(w, r, "/admin/library?done=deleted")
 }

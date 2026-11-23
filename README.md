@@ -32,6 +32,19 @@ Brand names and logos belong to their owners. The catalogues are downloaded the 
 
 Admins can also add custom icons (name, aliases, tags and an image) from the same page. They are stored apart from the downloaded catalogues, in `library-local.json` and `library-icons/` under `DATA_DIR`, and are searched together with them. Only the custom icons can be edited or deleted, and a refresh never touches them. Tiles that used a deleted custom icon keep their copy.
 
+## Logging
+
+Everything is logged to the console (stdout) as one `key=value` line per event, so `docker logs` shows it. Lines at `WARN` or `ERROR` are failures.
+
+- Sign-ins (including failed attempts), sign-outs and first-run setup.
+- Password changes and resets, and users created or deleted.
+- Edit mode: sections and tiles added, changed, deleted or reordered, and edits published or cancelled.
+- Icon library refreshes and custom icons added, changed or deleted.
+- Every request to a remote resource (catalogues, icon images, sites), with its status and how long it took, and any that fail. Query strings are left out.
+- Any request that ends in an error status, and internal errors.
+
+Each event names the user and their address. Behind a proxy the address is the first `X-Forwarded-For` entry, which a client can forge. Passwords are never logged.
+
 ## Development
 
 ```sh

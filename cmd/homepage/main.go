@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lethek/tesla-homepage/internal/auth"
+	"github.com/lethek/tesla-homepage/internal/httplog"
 	"github.com/lethek/tesla-homepage/internal/icons"
 	"github.com/lethek/tesla-homepage/internal/library"
 	"github.com/lethek/tesla-homepage/internal/store"
@@ -18,6 +20,10 @@ import (
 )
 
 func main() {
+	// Everything is logged to the console as key=value lines, which the
+	// standard log package also feeds into.
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+
 	addr := env("ADDR", ":8080")
 	dataDir := env("DATA_DIR", "./data")
 
@@ -31,7 +37,11 @@ func main() {
 	}
 	lib := library.New(st.LibraryCachePath(), store.WriteFile)
 	lib.LocalPath, lib.LocalDir = st.LocalLibraryPath(), st.LocalLibraryDir()
-	srv, err := web.New(st, &auth.Sessions{Secret: secret}, icons.New(st.SaveIcon), lib)
+	resolver := icons.New(st.SaveIcon)
+	// Log every request to a remote resource.
+	lib.Client.Transport = httplog.Transport(lib.Client.Transport)
+	resolver.Client.Transport = httplog.Transport(resolver.Client.Transport)
+	srv, err := web.New(st, &auth.Sessions{Secret: secret}, resolver, lib)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,10 +61,11 @@ func main() {
 		httpSrv.Shutdown(shutdown)
 	}()
 
-	log.Printf("listening on %s, data in %s", addr, dataDir)
+	slog.Info("listening", "addr", addr, "data", dataDir)
 	if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
+	slog.Info("stopped")
 }
 
 func env(key, def string) string {

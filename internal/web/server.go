@@ -8,7 +8,7 @@ import (
 	"errors"
 	"html/template"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -118,7 +118,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/library/local/{slug}/delete", s.admin(s.deleteLocalIcon))
 	mux.Handle("GET /library/local/{slug}", s.user(s.localImage))
 
-	return http.NewCrossOriginProtection().Handler(securityHeaders(mux))
+	return requestLog(http.NewCrossOriginProtection().Handler(securityHeaders(mux)))
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -151,6 +151,7 @@ func (s *Server) user(h userHandler) http.Handler {
 			}
 			return
 		}
+		setActor(r, u.Username)
 		h(w, r, u)
 	})
 }
@@ -215,7 +216,7 @@ func (s *Server) execute(w http.ResponseWriter, page, name string, status int, v
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
-	log.Printf("error: %v", err)
+	slog.Error("internal error", "err", err)
 	http.Error(w, "Internal server error", http.StatusInternalServerError)
 }
 
@@ -261,7 +262,9 @@ func (s *Server) welcome(w http.ResponseWriter, r *http.Request, u store.User) {
 		return
 	}
 	hp := store.EmptyHomepage()
+	start := "empty"
 	if r.FormValue("start") == "starter" {
+		start = "starter"
 		hp = store.StarterHomepage()
 		s.fetchStarterIcons(r.Context(), &hp)
 	}
@@ -269,6 +272,7 @@ func (s *Server) welcome(w http.ResponseWriter, r *http.Request, u store.User) {
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "homepage created", "start", start)
 	redirect(w, r, "/")
 }
 
@@ -279,7 +283,7 @@ func (s *Server) fetchStarterIcons(ctx context.Context, hp *store.Homepage) {
 	defer cancel()
 	cat, err := s.library.Catalogue(ctx)
 	if err != nil {
-		log.Printf("icon library unavailable for starter set: %v", err)
+		slog.Warn("icon library unavailable for starter set", "err", err)
 	}
 	done := make(chan struct{})
 	n := 0
@@ -357,10 +361,11 @@ func (s *Server) renderLibrary(w http.ResponseWriter, u store.User, status int, 
 
 func (s *Server) refreshLibrary(w http.ResponseWriter, r *http.Request, u store.User) {
 	if _, err := s.library.Refresh(r.Context()); err != nil {
-		log.Printf("refreshing icon library: %v", err)
+		slog.Error("icon library refresh failed", auditArgs(r, []any{"err", err})...)
 		s.renderLibrary(w, u, http.StatusBadGateway, "", "Couldn't download the icon library: "+err.Error())
 		return
 	}
+	s.audit(r, "icon library refreshed")
 	redirect(w, r, "/admin/library?done=refreshed")
 }
 
@@ -378,6 +383,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	if msg := validateCredentials(username, password, r.FormValue("confirm")); msg != "" {
+		s.auditFailed(r, "setup rejected", "reason", msg)
 		s.render(w, "setup", http.StatusUnprocessableEntity, view{Error: msg, Form: username})
 		return
 	}
@@ -395,6 +401,8 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	setActor(r, u.Username)
+	s.audit(r, "first admin created and signed in")
 	s.sessions.SetCookie(w, r, u.ID, u.SessionVersion)
 	redirect(w, r, "/welcome")
 }
@@ -419,14 +427,27 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		hash = u.PasswordHash
 	}
 	if !auth.CheckPassword(hash, r.FormValue("password")) || err != nil {
+		// The reason is for the log only. The page doesn't say which part was wrong.
+		reason := "wrong password"
+		if err != nil {
+			reason = "unknown user"
+		}
+		s.auditFailed(r, "login failed", "username", username, "reason", reason)
 		s.render(w, "login", http.StatusUnauthorized, view{Error: "Wrong username or password.", Form: username})
 		return
 	}
+	setActor(r, u.Username)
+	s.audit(r, "login")
 	s.sessions.SetCookie(w, r, u.ID, u.SessionVersion)
 	redirect(w, r, "/")
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	// The cookie says who is signing out. A stale or missing one is logged as no one.
+	if u, err := s.currentUser(r); err == nil {
+		setActor(r, u.Username)
+	}
+	s.audit(r, "logout")
 	auth.ClearCookie(w, r)
 	redirect(w, r, "/login")
 }
@@ -451,11 +472,13 @@ func (s *Server) passwordForm(w http.ResponseWriter, r *http.Request, u store.Us
 
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !auth.CheckPassword(u.PasswordHash, r.FormValue("current")) {
+		s.auditFailed(r, "password change failed", "reason", "wrong current password")
 		s.render(w, "password", http.StatusUnprocessableEntity, view{User: &u, Error: "Current password is wrong."})
 		return
 	}
 	password := r.FormValue("password")
 	if msg := validateCredentials(u.Username, password, r.FormValue("confirm")); msg != "" {
+		s.auditFailed(r, "password change failed", "reason", msg)
 		s.render(w, "password", http.StatusUnprocessableEntity, view{User: &u, Error: msg})
 		return
 	}
@@ -469,6 +492,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, u store.
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "password changed", "target", u.Username)
 	// Other devices are signed out; keep this one signed in.
 	s.sessions.SetCookie(w, r, u.ID, u.SessionVersion)
 	s.render(w, "password", http.StatusOK, view{User: &u, Message: "Password changed. Other devices have been signed out."})
@@ -499,6 +523,7 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request, u store.User
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	if msg := validateCredentials(username, password, password); msg != "" {
+		s.auditFailed(r, "user create rejected", "target", username, "reason", msg)
 		s.renderUsers(w, u, http.StatusUnprocessableEntity, "", msg)
 		return
 	}
@@ -508,18 +533,21 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request, u store.User
 		return
 	}
 	if _, err := s.store.CreateUser(username, hash, false, false); errors.Is(err, store.ErrUsernameTaken) {
+		s.auditFailed(r, "user create rejected", "target", username, "reason", "username taken")
 		s.renderUsers(w, u, http.StatusUnprocessableEntity, "", "That username is already taken.")
 		return
 	} else if err != nil {
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "user created", "target", username)
 	redirect(w, r, "/admin/users?done=created")
 }
 
 func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request, u store.User) {
 	password := r.FormValue("password")
 	if msg := validateCredentials("x", password, password); msg != "" {
+		s.auditFailed(r, "password reset rejected", "target_id", r.PathValue("id"), "reason", msg)
 		s.renderUsers(w, u, http.StatusUnprocessableEntity, "", msg)
 		return
 	}
@@ -537,6 +565,7 @@ func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request, u store.U
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "password reset", "target", updated.Username)
 	if updated.ID == u.ID {
 		s.sessions.SetCookie(w, r, updated.ID, updated.SessionVersion)
 	}
@@ -546,8 +575,13 @@ func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request, u store.U
 func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request, u store.User) {
 	id := r.PathValue("id")
 	if id == u.ID {
+		s.auditFailed(r, "user delete rejected", "target", u.Username, "reason", "own account")
 		s.renderUsers(w, u, http.StatusUnprocessableEntity, "", "You can't delete your own account.")
 		return
+	}
+	target := id
+	if t, err := s.store.UserByID(id); err == nil {
+		target = t.Username
 	}
 	if err := s.store.DeleteUser(id); errors.Is(err, store.ErrNotFound) {
 		http.NotFound(w, r)
@@ -556,5 +590,6 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request, u store.User
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "user deleted", "target", target)
 	redirect(w, r, "/admin/users?done=deleted")
 }

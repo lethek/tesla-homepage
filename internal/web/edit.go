@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -35,6 +36,9 @@ func (s *Server) edit(w http.ResponseWriter, r *http.Request, u store.User) {
 		s.fail(w, err)
 		return
 	}
+	if !resumed {
+		s.audit(r, "edit mode started")
+	}
 	s.render(w, "edit", http.StatusOK, view{User: &u, Homepage: draft, Editing: true, Resumed: resumed, Dirty: s.draftDiffers(u.ID, draft)})
 }
 
@@ -55,6 +59,7 @@ func (s *Server) editDone(w http.ResponseWriter, r *http.Request, u store.User) 
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "edit published")
 	redirect(w, r, "/")
 }
 
@@ -63,21 +68,26 @@ func (s *Server) editCancel(w http.ResponseWriter, r *http.Request, u store.User
 		s.fail(w, err)
 		return
 	}
+	s.audit(r, "edit cancelled")
 	redirect(w, r, "/")
 }
 
 // updateDraft applies fn to the Draft and responds with the re-rendered editor.
-func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request, u store.User, fn func(*store.Homepage) error) {
+// event and attrs describe the change for the audit log.
+func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request, u store.User, event string, fn func(*store.Homepage) error, attrs ...any) {
 	hp, err := s.store.UpdateDraft(u.ID, fn)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		// The Draft was published or discarded elsewhere, e.g. in another tab.
+		s.auditFailed(r, event+" failed", append(attrs, "reason", "no draft")...)
 		redirect(w, r, "/edit")
 	case errors.Is(err, errBadRequest):
+		s.auditFailed(r, event+" failed", append(attrs, "reason", "no such section or tile")...)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 	case err != nil:
 		s.fail(w, err)
 	default:
+		s.audit(r, event, attrs...)
 		s.fragment(w, "edit", "editor", view{User: &u, Homepage: hp, Editing: true, Dirty: s.draftDiffers(u.ID, hp)})
 	}
 }
@@ -92,11 +102,11 @@ func (s *Server) editSettings(w http.ResponseWriter, r *http.Request, u store.Us
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	s.updateDraft(w, r, u, "homepage settings changed", func(hp *store.Homepage) error {
 		hp.Title = title
 		hp.Overflow = overflow
 		return nil
-	})
+	}, "title", title, "overflow", string(overflow))
 }
 
 func (s *Server) editOrder(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -120,6 +130,7 @@ func (s *Server) editOrder(w http.ResponseWriter, r *http.Request, u store.User)
 	case err != nil:
 		s.fail(w, err)
 	default:
+		s.audit(r, "sections and tiles reordered")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -129,40 +140,52 @@ func (s *Server) addSection(w http.ResponseWriter, r *http.Request, u store.User
 	if title == "" {
 		title = "New section"
 	}
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	s.updateDraft(w, r, u, "section added", func(hp *store.Homepage) error {
 		hp.Sections = append(hp.Sections, store.Section{ID: store.NewID(), Title: title, Tiles: []store.Tile{}})
 		return nil
-	})
+	}, "section", title)
 }
 
 func (s *Server) renameSection(w http.ResponseWriter, r *http.Request, u store.User) {
 	title := clip(r.FormValue("title"), 60)
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	s.updateDraft(w, r, u, "section renamed", func(hp *store.Homepage) error {
 		sec := hp.FindSection(r.PathValue("id"))
 		if sec == nil || title == "" {
 			return errBadRequest
 		}
 		sec.Title = title
 		return nil
-	})
+	}, "section", title)
 }
 
 func (s *Server) deleteSection(w http.ResponseWriter, r *http.Request, u store.User) {
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	title := ""
+	if draft, _, err := s.store.Draft(u.ID); err == nil {
+		if sec := draft.FindSection(r.PathValue("id")); sec != nil {
+			title = sec.Title
+		}
+	}
+	s.updateDraft(w, r, u, "section deleted", func(hp *store.Homepage) error {
 		if !hp.DeleteSection(r.PathValue("id")) {
 			return errBadRequest
 		}
 		return nil
-	})
+	}, "section", title)
 }
 
 func (s *Server) deleteTile(w http.ResponseWriter, r *http.Request, u store.User) {
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	title := ""
+	if draft, _, err := s.store.Draft(u.ID); err == nil {
+		if t := draft.FindTile(r.PathValue("id")); t != nil {
+			title = t.Title
+		}
+	}
+	s.updateDraft(w, r, u, "tile deleted", func(hp *store.Homepage) error {
 		if !hp.DeleteTile(r.PathValue("id")) {
 			return errBadRequest
 		}
 		return nil
-	})
+	}, "tile", title)
 }
 
 // Plates
@@ -255,14 +278,14 @@ func (s *Server) addTile(w http.ResponseWriter, r *http.Request, u store.User) {
 	if !ok {
 		return
 	}
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	s.updateDraft(w, r, u, "tile added", func(hp *store.Homepage) error {
 		sec := hp.FindSection(sectionID)
 		if sec == nil {
 			return errBadRequest
 		}
 		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon, Plate: in.plate, Padding: in.padding, Library: lib})
 		return nil
-	})
+	}, "tile", in.title, "url", in.url, "icon_source", in.source, "library_icon", lib)
 }
 
 func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -286,14 +309,14 @@ func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User
 	if !ok {
 		return
 	}
-	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+	s.updateDraft(w, r, u, "tile changed", func(hp *store.Homepage) error {
 		t := hp.FindTile(tileID)
 		if t == nil {
 			return errBadRequest
 		}
 		t.Title, t.URL, t.Icon, t.Plate, t.Padding, t.Library = in.title, in.url, icon, in.plate, in.padding, lib
 		return nil
-	})
+	}, "tile", in.title, "url", in.url, "icon_source", in.source, "library_icon", lib)
 }
 
 type tileInput struct {
@@ -423,6 +446,7 @@ func (s *Server) resolveIcon(w http.ResponseWriter, r *http.Request, f *tileForm
 		}
 	}
 	if err != nil {
+		s.auditFailed(r, "tile icon failed", "tile", in.title, "icon_source", in.source, "err", err)
 		f.Error = "Couldn't use that icon: " + err.Error()
 		s.renderTileForm(w, *f, true)
 		return "", "", false
@@ -470,6 +494,7 @@ func (s *Server) librarySearch(w http.ResponseWriter, r *http.Request, u store.U
 	res := libraryResults{Query: q}
 	cat, err := s.library.Catalogue(r.Context())
 	if err != nil {
+		slog.Error("icon library unavailable for search", auditArgs(r, []any{"err", err})...)
 		res.Error = "The icon library is unavailable right now. You can still upload an icon, give an image URL or use the site's own icon."
 		s.execute(w, "edit", "library-results", http.StatusOK, res)
 		return

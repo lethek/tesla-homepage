@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - Custom icons: Admins can add, edit and delete their own icons on the Icon library page, from an upload, an image URL or a site's own icon. They are kept in `library-local.json` and `library-icons/` on the data volume, apart from the downloaded catalogues, and are searched together with them.
+- Audit log on the console: sign-ins, sign-outs, password changes and resets, user, tile, section and Icon library changes, every request to a remote resource, and all errors.
 - Escape leaves Edit mode by cancelling the Draft, after asking if it has unsaved changes.
 
 ## [0.1.0] - 2026-11-23
