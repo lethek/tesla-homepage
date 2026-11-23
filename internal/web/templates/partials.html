@@ -1,0 +1,40 @@
+{{define "header"}}
+<header class="top">
+  <div class="clock" data-clock></div>
+  <a class="brand" href="/">
+    <img src="/static/logo.svg" alt="" width="28" height="28">
+    <span>{{or .Homepage.Title "Homepage"}}</span>
+  </a>
+  <div class="controls">
+    {{if and .User (not .Editing)}}
+    <details class="menu">
+      <summary class="icon-btn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </summary>
+      <div class="menu-items">
+        <a href="/edit">Edit mode</a>
+        <hr>
+        {{if .User.Admin}}<a href="/admin/users">Manage users</a><a href="/admin/library">Icon library</a>{{end}}
+        <a href="/account/password">Change password</a>
+        <form method="post" action="/logout"><button type="submit">Log out</button></form>
+      </div>
+    </details>
+    {{end}}
+    <button type="button" class="icon-btn" data-fullscreen hidden aria-label="Fullscreen">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+  </div>
+</header>
+{{end}}
+
+{{define "icon"}}{{if .Icon}}<span class="icon{{if .Plate}} plated{{end}}"{{if or .Plate .Padding}} style="{{with .Plate}}--plate: {{.}};{{end}}{{with .Padding}}--pad: {{.}};{{end}}"{{end}}><img src="/icons/{{.Icon}}" alt="" loading="lazy"></span>{{else}}<span class="icon placeholder" aria-hidden="true"{{with .Plate}} style="--plate: {{.}}"{{end}}>{{initial .Title}}</span>{{end}}{{end}}
+
+{{define "icon-credits"}}<ul class="credits">
+  <li><a href="https://dashboardicons.com" target="_blank" rel="noopener">Dashboard Icons</a>, Apache-2.0 licence.</li>
+  <li><a href="https://simpleicons.org" target="_blank" rel="noopener">Simple Icons</a>, CC0 licence.</li>
+  <li>Icons from <a href="https://selfh.st/icons" target="_blank" rel="noopener">selfh.st</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</li>
+  <li><a href="https://lobehub.com/icons" target="_blank" rel="noopener">LobeHub Icons</a>, MIT licence.</li>
+</ul>
+<p class="hint">Brand names and logos belong to their owners. Icons you pick are copied to this server unchanged.</p>{{end}}
+
+{{define "messages"}}{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}{{with .Message}}<p class="message" role="status">{{.}}</p>{{end}}{{end}}

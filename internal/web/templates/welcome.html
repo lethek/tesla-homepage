@@ -1,0 +1,10 @@
+{{define "body"}}
+<main class="card">
+  <h1>Welcome, {{.User.Username}}</h1>
+  <p>How would you like to start your homepage? You can change everything later in Edit mode.</p>
+  <form method="post" action="/welcome" class="choices">
+    <button type="submit" name="start" value="starter" class="primary">Start from the starter set</button>
+    <button type="submit" name="start" value="empty">Start empty</button>
+  </form>
+</main>
+{{end}}

@@ -1,0 +1,18 @@
+{{define "body"}}
+<main class="homepage overflow-{{.Homepage.Overflow}}">
+  {{range .Homepage.Sections}}
+  <section class="section">
+    <h2>{{.Title}}</h2>
+    <div class="row">
+      <div class="tiles">
+        {{range .Tiles}}
+        <a class="tile" href="{{.URL}}">{{template "icon" .}}<span class="label">{{.Title}}</span></a>
+        {{end}}
+      </div>
+    </div>
+  </section>
+  {{else}}
+  <p class="empty">Nothing here yet. Open the menu and choose Edit mode to add a section.</p>
+  {{end}}
+</main>
+{{end}}
