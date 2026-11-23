@@ -100,7 +100,7 @@
         hx-get="/edit/library" hx-trigger="load, input changed delay:300ms, search" hx-target="#library-results" hx-swap="innerHTML"
         hx-include="#tile-title, #tile-url, .lib-radio:checked" hx-sync="this:replace">
       <div id="library-results" class="lib-results">{{with .Library}}<input class="lib-radio" type="radio" name="library" value="{{.}}" checked hidden>{{end}}</div>
-      <p class="hint">Icons from Dashboard Icons, Simple Icons, <a href="https://selfh.st/icons" target="_blank" rel="noopener">selfh.st</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) and LobeHub. If you don't pick one, the site's own icon is used.</p>
+      <p class="hint">Icons from Dashboard Icons, Simple Icons, <a href="https://selfh.st/icons" target="_blank" rel="noopener">selfh.st</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>) and LobeHub. If you don't pick one, a letter placeholder is shown.</p>
     </div>
     <div class="panel panel-upload">
       <label>Image file <input name="icon_file" type="file" accept="image/*"></label>

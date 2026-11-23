@@ -414,8 +414,8 @@ func (s *Server) resolveIcon(w http.ResponseWriter, r *http.Request, f *tileForm
 		icon, err = s.icons.FromURL(ctx, in.iconURL)
 	case "library":
 		if in.library == "" {
-			// Nothing picked: use the site's own icon.
-			icon = s.icons.FromSite(ctx, in.url)
+			// Nothing picked: the letter placeholder. The From site tab is
+			// the way to fetch the site's own icon.
 			break
 		}
 		var cat *library.Catalogue

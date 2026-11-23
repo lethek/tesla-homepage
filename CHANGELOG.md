@@ -10,6 +10,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Audit log on the console: sign-ins, sign-outs, password changes and resets, user, tile, section and Icon library changes, every request to a remote resource, and all errors.
 - Escape leaves Edit mode by cancelling the Draft, after asking if it has unsaved changes.
 
+### Changed
+
+- A tile saved from the Library tab with no icon picked now gets the letter placeholder and no longer contacts the site. Use the From site tab to fetch the site's icon.
+
 ## [0.1.0] - 2026-11-23
 
 ### Added

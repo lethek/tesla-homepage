@@ -369,10 +369,25 @@ func TestTileFormValidation(t *testing.T) {
 		}
 	}
 
-	// Library tab with nothing picked falls back to the site's own icon.
+	// Library tab with nothing picked saves the placeholder and never contacts
+	// the site. Fetching the site's icon is the From site tab's job.
+	before := siteIconRequests.Load()
 	form := url.Values{"title": {"X"}, "url": {"https://example.com"}, "source": {"library"}, "plate": {"none"}}
-	if resp, _ := e.hxPost(c, "/edit/sections/"+sid+"/tiles", form); resp.Header.Get("HX-Retarget") != "" {
+	resp, body := e.hxPost(c, "/edit/sections/"+sid+"/tiles", form)
+	if resp.Header.Get("HX-Retarget") != "" {
 		t.Fatal("library tab with no pick rejected")
+	}
+	if !strings.Contains(body, `placeholder" aria-hidden="true">X<`) {
+		t.Fatalf("no placeholder: %s", body)
+	}
+	if n := siteIconRequests.Load() - before; n != 0 {
+		t.Fatalf("library tab with no pick made %d requests to the site", n)
+	}
+	// The From site tab does fetch it.
+	form.Set("source", "site")
+	e.hxPost(c, "/edit/sections/"+sid+"/tiles", form)
+	if siteIconRequests.Load() == before {
+		t.Fatal("From site tab did not request the site's icon")
 	}
 }
 

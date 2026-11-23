@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/lethek/tesla-homepage/internal/auth"
@@ -55,7 +56,13 @@ func newEnv(t *testing.T) *env {
 
 const pngHeader = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
+// siteIconRequests counts requests for a site's own icon.
+var siteIconRequests atomic.Int32
+
 func fakeCDN(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/favicon.ico" || r.URL.Path == "/apple-touch-icon.png" {
+		siteIconRequests.Add(1)
+	}
 	switch {
 	case r.URL.Path == "/metadata.json":
 		w.Write([]byte(`{
