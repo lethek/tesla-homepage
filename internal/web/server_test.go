@@ -23,6 +23,8 @@ type env struct {
 	t     *testing.T
 	srv   *httptest.Server
 	store *store.Store
+	// server lets tests reach inside, such as to move the throttle's clock.
+	server *Server
 }
 
 func newEnv(t *testing.T) *env {
@@ -51,7 +53,7 @@ func newEnv(t *testing.T) *env {
 	}
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)
-	return &env{t: t, srv: srv, store: st}
+	return &env{t: t, srv: srv, store: st, server: s}
 }
 
 const pngHeader = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
