@@ -79,11 +79,70 @@ func TestReorderReturnsTheNewRevision(t *testing.T) {
 		t.Fatalf("want two sections: %s", page)
 	}
 	order := `[{"id":"` + ids[1][1] + `","tiles":[]},{"id":"` + ids[0][1] + `","tiles":[]}]`
-	resp, _ := e.do(c, http.MethodPost, "/edit/order", strings.NewReader(order), "application/json", false)
-	rev := resp.Header.Get("X-Draft-Rev")
+	resp, rev := e.reorder(c, draftRev(t, page), order)
 	if resp.StatusCode != http.StatusNoContent || rev == "" || rev == draftRev(t, page) {
 		t.Fatalf("reorder: %d rev=%q old=%q", resp.StatusCode, rev, draftRev(t, page))
 	}
 	resp, _ = e.post(c, "/edit/cancel", url.Values{"confirm_rev": {rev}})
 	wantRedirect(t, resp, "/")
+}
+
+// reorder posts a drag-and-drop order the way the editor does, naming the
+// Draft revision its page was showing.
+func (e *env) reorder(c *http.Client, rev, order string) (*http.Response, string) {
+	e.t.Helper()
+	req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/edit/order", strings.NewReader(order))
+	req.Header.Set("Content-Type", "application/json")
+	if rev != "" {
+		req.Header.Set("X-Draft-Rev", rev)
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	return resp, resp.Header.Get("X-Draft-Rev")
+}
+
+// Tab B loaded the Draft. Tab A then changes a tile without changing its ID.
+// A reorder from tab B would apply to A's newer Draft and hand B its revision,
+// after which B's Cancel could discard A's edit unseen. It must be refused.
+func TestReorderFromAStaleTabIsRefused(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	logs := captureLogs(t)
+	e.get(c, "/edit")
+	e.hxPost(c, "/edit/sections", url.Values{"title": {"Lab"}})
+	sid, _, _ := e.draftTile()
+	for _, title := range []string{"One", "Two"} {
+		e.hxPost(c, "/edit/sections/"+sid+"/tiles", url.Values{"title": {title}, "url": {"https://example.com"}, "source": {"site"}})
+	}
+	_, tabB := e.get(c, "/edit")
+	_, ids, _ := e.draftTile()
+	order := `[{"id":"` + sid + `","tiles":["` + ids[1] + `","` + ids[0] + `"]}]`
+
+	// Tab A renames a tile. The IDs, and so the order's validity, are unchanged.
+	e.hxPost(c, "/edit/tiles/"+ids[0], url.Values{"title": {"Renamed in A"}, "url": {"https://example.com"}, "source": {"site"}})
+
+	resp, rev := e.reorder(c, draftRev(t, tabB), order)
+	if resp.StatusCode != http.StatusConflict || rev != "" {
+		t.Fatalf("stale reorder: %d, rev=%q", resp.StatusCode, rev)
+	}
+	wantLogged(t, logs, "level=WARN", `msg="reorder refused"`)
+	_, page := e.get(c, "/edit")
+	if !strings.Contains(page, "Renamed in A") || strings.Index(page, "Renamed in A") > strings.Index(page, ">Two<") {
+		t.Fatalf("the stale reorder was applied or the edit lost: %s", page)
+	}
+	// And tab B still can't cancel without seeing the change.
+	resp, _ = e.post(c, "/edit/cancel", url.Values{"confirm_rev": {draftRev(t, tabB)}})
+	wantRedirect(t, resp, "/edit?stale=1")
+
+	// With the current revision the reorder goes through.
+	if resp, _ := e.reorder(c, draftRev(t, page), order); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("current reorder: %d", resp.StatusCode)
+	}
+	// A request that names no revision is refused too.
+	if resp, _ := e.reorder(c, "", order); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("reorder without a revision: %d", resp.StatusCode)
+	}
 }

@@ -165,7 +165,8 @@
     });
     fetch("/edit/order", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // The Draft this page is showing, so the server can refuse if it changed.
+      headers: { "Content-Type": "application/json", "X-Draft-Rev": document.getElementById("editor").dataset.rev },
       body: JSON.stringify(order)
     }).then(function (r) {
       if (!r.ok) location.reload();

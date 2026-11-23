@@ -334,10 +334,13 @@ func TestTiles(t *testing.T) {
 
 	// Reorder, then delete.
 	order := `[{"id":"` + sid + `","tiles":["` + tiles[1].ID + `","` + tiles[0].ID + `"]}]`
-	if resp, _ := e.do(c, http.MethodPost, "/edit/order", strings.NewReader(order), "application/json", false); resp.StatusCode != http.StatusNoContent {
+	draft, _, _ = e.store.Draft(users[0].ID)
+	resp, rev := e.reorder(c, store.Revision(draft), order)
+	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("order: %d", resp.StatusCode)
 	}
-	if resp, _ := e.do(c, http.MethodPost, "/edit/order", strings.NewReader(`[]`), "application/json", false); resp.StatusCode != http.StatusConflict {
+	// An order that doesn't match the Draft's sections and tiles is refused.
+	if resp, _ := e.reorder(c, rev, `[]`); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("stale order: %d", resp.StatusCode)
 	}
 	e.hxPost(c, "/edit/tiles/"+tiles[0].ID+"/delete", nil)

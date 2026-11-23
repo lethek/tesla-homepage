@@ -20,7 +20,10 @@ import (
 	"github.com/lethek/tesla-homepage/internal/store"
 )
 
-var errBadRequest = errors.New("bad request")
+var (
+	errBadRequest = errors.New("bad request")
+	errStaleDraft = errors.New("draft changed since the page loaded")
+)
 
 func (s *Server) edit(w http.ResponseWriter, r *http.Request, u store.User) {
 	if _, ok, err := s.store.Homepage(u.ID); err != nil {
@@ -117,13 +120,24 @@ func (s *Server) editOrder(w http.ResponseWriter, r *http.Request, u store.User)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
+	// The page says which Draft it was showing. If the Draft has changed since,
+	// say by an edit in another tab, applying an order built from the old page
+	// would give this tab a revision for contents it never saw. Checked inside
+	// the update, under the store's lock.
+	seen := r.Header.Get("X-Draft-Rev")
 	hp, err := s.store.UpdateDraft(u.ID, func(hp *store.Homepage) error {
+		if seen == "" || store.Revision(*hp) != seen {
+			return errStaleDraft
+		}
 		if !hp.Reorder(order) {
 			return errBadRequest
 		}
 		return nil
 	})
 	switch {
+	case errors.Is(err, errStaleDraft):
+		s.auditFailed(r, "reorder refused", "reason", "draft changed since this page loaded")
+		http.Error(w, "The draft has changed since this page loaded", http.StatusConflict)
 	case errors.Is(err, errBadRequest):
 		// The page was stale. The browser reloads to get the current Draft.
 		http.Error(w, "Order does not match the current draft", http.StatusConflict)
