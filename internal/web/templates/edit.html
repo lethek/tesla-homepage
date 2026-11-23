@@ -13,7 +13,7 @@
 {{end}}
 
 {{define "editor"}}
-<div id="editor" class="homepage editing overflow-{{.Homepage.Overflow}}">
+<div id="editor" class="homepage editing overflow-{{.Homepage.Overflow}}" data-dirty="{{.Dirty}}">
   <form class="settings" hx-post="/edit/settings" hx-trigger="change">
     <label>Title <input name="title" value="{{.Homepage.Title}}" maxlength="60"></label>
     <fieldset class="toggle">

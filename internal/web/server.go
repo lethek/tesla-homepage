@@ -38,6 +38,7 @@ type view struct {
 	Homepage store.Homepage
 	Editing  bool
 	Resumed  bool
+	Dirty    bool // the Draft differs from the published Homepage
 	Error    string
 	Message  string
 	Users    []store.User

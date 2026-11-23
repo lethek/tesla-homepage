@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -34,7 +35,19 @@ func (s *Server) edit(w http.ResponseWriter, r *http.Request, u store.User) {
 		s.fail(w, err)
 		return
 	}
-	s.render(w, "edit", http.StatusOK, view{User: &u, Homepage: draft, Editing: true, Resumed: resumed})
+	s.render(w, "edit", http.StatusOK, view{User: &u, Homepage: draft, Editing: true, Resumed: resumed, Dirty: s.draftDiffers(u.ID, draft)})
+}
+
+// draftDiffers reports whether the Draft has changes the published Homepage
+// lacks. If that can't be told, it says yes, so nothing is thrown away unasked.
+func (s *Server) draftDiffers(userID string, draft store.Homepage) bool {
+	published, ok, err := s.store.Homepage(userID)
+	if err != nil || !ok {
+		return true
+	}
+	a, errA := json.Marshal(published)
+	b, errB := json.Marshal(draft)
+	return errA != nil || errB != nil || !bytes.Equal(a, b)
 }
 
 func (s *Server) editDone(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -65,7 +78,7 @@ func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request, u store.Use
 	case err != nil:
 		s.fail(w, err)
 	default:
-		s.fragment(w, "edit", "editor", view{User: &u, Homepage: hp, Editing: true})
+		s.fragment(w, "edit", "editor", view{User: &u, Homepage: hp, Editing: true, Dirty: s.draftDiffers(u.ID, hp)})
 	}
 }
 

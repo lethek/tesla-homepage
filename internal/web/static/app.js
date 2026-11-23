@@ -2,9 +2,20 @@
   "use strict";
 
   // Escape follows the "Back to homepage" button on pages that have one.
+  // In Edit mode it cancels, asking first if the Draft has changes. An open
+  // dialog takes Escape for itself.
   document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || e.defaultPrevented || document.querySelector("dialog[open]")) return;
     var back = document.querySelector("a[data-back]");
-    if (e.key === "Escape" && back && !e.defaultPrevented) location.href = back.href;
+    var cancel = document.querySelector("form[action='/edit/cancel']");
+    var editor = document.getElementById("editor");
+    if (back) {
+      location.href = back.href;
+    } else if (cancel) {
+      if (editor && editor.dataset.dirty === "true" &&
+          !confirm("Discard your unsaved changes and leave Edit mode?")) return;
+      cancel.submit();
+    }
   });
 
   // Clock
@@ -146,6 +157,7 @@
       body: JSON.stringify(order)
     }).then(function (r) {
       if (!r.ok) location.reload();
+      else document.getElementById("editor").dataset.dirty = "true";
     }, function () {
       location.reload();
     });
