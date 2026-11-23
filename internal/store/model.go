@@ -3,6 +3,7 @@ package store
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"net/url"
 )
 
 // Overflow controls how rows of Tiles wider than the screen are laid out.
@@ -28,6 +29,17 @@ type Tile struct {
 	Padding int `json:"padding,omitempty"`
 	// Library names the Icon library entry the icon came from, if any.
 	Library string `json:"library,omitempty"`
+	// Fullscreen opens the URL through YouTube's redirect page, which the
+	// Tesla browser shows fullscreen.
+	Fullscreen bool `json:"fullscreen,omitempty"`
+}
+
+// Href is the address the Tile links to.
+func (t Tile) Href() string {
+	if t.Fullscreen {
+		return "https://www.youtube.com/redirect?q=" + url.QueryEscape(t.URL)
+	}
+	return t.URL
 }
 
 type Section struct {

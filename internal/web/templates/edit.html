@@ -82,6 +82,8 @@
   {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
   <label>Title <input id="tile-title" name="title" value="{{.Tile.Title}}" maxlength="40" required></label>
   <label>Web address <input id="tile-url" name="url" type="url" value="{{.Tile.URL}}" placeholder="https://" required></label>
+  <label class="check"><input type="checkbox" name="fullscreen" value="1" {{if .Tile.Fullscreen}}checked{{end}}> Open fullscreen</label>
+  <p class="hint">Opens the link through YouTube's redirect page, which the Tesla browser shows fullscreen.</p>
 
   <fieldset class="icon-source">
     <legend>Icon</legend>

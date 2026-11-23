@@ -301,7 +301,7 @@ func (s *Server) addTile(w http.ResponseWriter, r *http.Request, u store.User) {
 		if sec == nil {
 			return errBadRequest
 		}
-		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon, Plate: in.plate, Padding: in.padding, Library: lib})
+		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon, Plate: in.plate, Padding: in.padding, Library: lib, Fullscreen: in.fullscreen})
 		return nil
 	}, "tile", in.title, "icon_source", in.source, "library_icon", lib)
 }
@@ -332,7 +332,7 @@ func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User
 		if t == nil {
 			return errBadRequest
 		}
-		t.Title, t.URL, t.Icon, t.Plate, t.Padding, t.Library = in.title, in.url, icon, in.plate, in.padding, lib
+		t.Title, t.URL, t.Icon, t.Plate, t.Padding, t.Library, t.Fullscreen = in.title, in.url, icon, in.plate, in.padding, lib, in.fullscreen
 		return nil
 	}, "tile", in.title, "icon_source", in.source, "library_icon", lib)
 }
@@ -345,6 +345,7 @@ type tileInput struct {
 	upload     []byte
 	plate      string
 	padding    int
+	fullscreen bool
 }
 
 // readTileForm parses and validates a submitted Tile form. On failure it
@@ -357,13 +358,14 @@ func (s *Server) readTileForm(w http.ResponseWriter, r *http.Request, f *tileFor
 		return tileInput{}, false
 	}
 	in := tileInput{
-		title:   clip(r.FormValue("title"), 40),
-		url:     strings.TrimSpace(r.FormValue("url")),
-		source:  r.FormValue("source"),
-		library: r.FormValue("library"),
-		iconURL: strings.TrimSpace(r.FormValue("icon_url")),
+		title:      clip(r.FormValue("title"), 40),
+		url:        strings.TrimSpace(r.FormValue("url")),
+		source:     r.FormValue("source"),
+		library:    r.FormValue("library"),
+		iconURL:    strings.TrimSpace(r.FormValue("icon_url")),
+		fullscreen: r.FormValue("fullscreen") != "",
 	}
-	f.Tile.Title, f.Tile.URL, f.IconURL = in.title, in.url, in.iconURL
+	f.Tile.Title, f.Tile.URL, f.IconURL, f.Tile.Fullscreen = in.title, in.url, in.iconURL, in.fullscreen
 	f.Source, f.Library, f.Query = in.source, in.library, r.FormValue("q")
 
 	switch choice := r.FormValue("plate"); choice {

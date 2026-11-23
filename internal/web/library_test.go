@@ -471,3 +471,42 @@ func TestLibraryAdminPage(t *testing.T) {
 		t.Fatalf("non-admin refresh: %d", resp.StatusCode)
 	}
 }
+
+func TestFullscreenTileLinksThroughYouTubeRedirect(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	e.get(c, "/edit")
+	e.hxPost(c, "/edit/sections", url.Values{"title": {"S"}})
+	sid, _, _ := e.draftTile()
+
+	for _, form := range []url.Values{
+		{"title": {"Plain"}, "url": {"https://example.com/a?x=1&y=2"}, "source": {"library"}},
+		{"title": {"Full"}, "url": {"https://example.com/a?x=1&y=2"}, "source": {"library"}, "fullscreen": {"1"}},
+	} {
+		e.hxPost(c, "/edit/sections/"+sid+"/tiles", form)
+	}
+	e.post(c, "/edit/done", nil)
+
+	_, body := e.get(c, "/")
+	if !strings.Contains(body, `href="https://example.com/a?x=1&amp;y=2"`) {
+		t.Fatalf("plain tile link changed: %s", body)
+	}
+	want := `href="https://www.youtube.com/redirect?q=https%3A%2F%2Fexample.com%2Fa%3Fx%3D1%26y%3D2"`
+	if !strings.Contains(body, want) {
+		t.Fatalf("fullscreen tile not redirected: %s", body)
+	}
+
+	// The checkbox is remembered, and can be cleared.
+	u, _ := e.store.UserByUsername("admin")
+	hp, _, _ := e.store.Homepage(u.ID)
+	id := hp.Sections[0].Tiles[1].ID
+	e.get(c, "/edit")
+	if _, body := e.get(c, "/edit/tiles/"+id); !strings.Contains(body, `name="fullscreen" value="1" checked`) {
+		t.Fatalf("edit dialog lost the option: %s", body)
+	}
+	e.hxPost(c, "/edit/tiles/"+id, url.Values{"title": {"Full"}, "url": {"https://example.com"}, "source": {"keep"}})
+	d, _, _ := e.store.Draft(u.ID)
+	if d.Sections[0].Tiles[1].Fullscreen {
+		t.Fatal("option not cleared")
+	}
+}

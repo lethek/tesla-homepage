@@ -6,7 +6,7 @@
     <div class="row">
       <div class="tiles">
         {{range .Tiles}}
-        <a class="tile" href="{{.URL}}">{{template "icon" .}}<span class="label">{{.Title}}</span></a>
+        <a class="tile" href="{{.Href}}">{{template "icon" .}}<span class="label">{{.Title}}</span></a>
         {{end}}
       </div>
     </div>

@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- "Open fullscreen" option on a tile. The tile then links through YouTube's redirect page, which the Tesla browser shows fullscreen.
+
 ## [0.2.0] - 2026-11-23
 
 ### Added
