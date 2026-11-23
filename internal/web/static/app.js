@@ -12,10 +12,16 @@
     if (back) {
       location.href = back.href;
     } else if (cancel) {
-      if (editor && editor.dataset.dirty === "true" &&
-          !confirm("Discard your unsaved changes and leave Edit mode?")) return;
-      cancel.submit();
+      cancel.requestSubmit(); // runs the confirmation below
     }
+  });
+
+  // Cancelling, by button or Escape, asks first if the Draft has changes.
+  document.addEventListener("submit", function (e) {
+    if (e.target.getAttribute("action") !== "/edit/cancel") return;
+    var editor = document.getElementById("editor");
+    if (editor && editor.dataset.dirty === "true" &&
+        !confirm("Discard your unsaved changes and leave Edit mode?")) e.preventDefault();
   });
 
   // Clock
