@@ -1,0 +1,324 @@
+package web
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/lethek/tesla-homepage/internal/icons"
+	"github.com/lethek/tesla-homepage/internal/store"
+)
+
+var errBadRequest = errors.New("bad request")
+
+func (s *Server) edit(w http.ResponseWriter, r *http.Request, u store.User) {
+	if _, ok, err := s.store.Homepage(u.ID); err != nil {
+		s.fail(w, err)
+		return
+	} else if !ok {
+		redirect(w, r, "/welcome")
+		return
+	}
+	draft, resumed, err := s.store.BeginDraft(u.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.render(w, "edit", http.StatusOK, view{User: &u, Homepage: draft, Editing: true, Resumed: resumed})
+}
+
+func (s *Server) editDone(w http.ResponseWriter, r *http.Request, u store.User) {
+	if err := s.store.PublishDraft(u.ID); err != nil && !errors.Is(err, store.ErrNotFound) {
+		s.fail(w, err)
+		return
+	}
+	redirect(w, r, "/")
+}
+
+func (s *Server) editCancel(w http.ResponseWriter, r *http.Request, u store.User) {
+	if err := s.store.DiscardDraft(u.ID); err != nil {
+		s.fail(w, err)
+		return
+	}
+	redirect(w, r, "/")
+}
+
+// updateDraft applies fn to the Draft and responds with the re-rendered editor.
+func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request, u store.User, fn func(*store.Homepage) error) {
+	hp, err := s.store.UpdateDraft(u.ID, fn)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		// The Draft was published or discarded elsewhere, e.g. in another tab.
+		redirect(w, r, "/edit")
+	case errors.Is(err, errBadRequest):
+		http.Error(w, "Bad request", http.StatusBadRequest)
+	case err != nil:
+		s.fail(w, err)
+	default:
+		s.fragment(w, "edit", "editor", view{User: &u, Homepage: hp, Editing: true})
+	}
+}
+
+func (s *Server) editSettings(w http.ResponseWriter, r *http.Request, u store.User) {
+	title := clip(r.FormValue("title"), 60)
+	if title == "" {
+		title = "Homepage"
+	}
+	overflow := store.Overflow(r.FormValue("overflow"))
+	if overflow != store.OverflowWrap && overflow != store.OverflowScroll {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		hp.Title = title
+		hp.Overflow = overflow
+		return nil
+	})
+}
+
+func (s *Server) editOrder(w http.ResponseWriter, r *http.Request, u store.User) {
+	var order []store.SectionOrder
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&order); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	_, err := s.store.UpdateDraft(u.ID, func(hp *store.Homepage) error {
+		if !hp.Reorder(order) {
+			return errBadRequest
+		}
+		return nil
+	})
+	switch {
+	case errors.Is(err, errBadRequest):
+		// The page was stale. The browser reloads to get the current Draft.
+		http.Error(w, "Order does not match the current draft", http.StatusConflict)
+	case errors.Is(err, store.ErrNotFound):
+		http.Error(w, "No draft", http.StatusConflict)
+	case err != nil:
+		s.fail(w, err)
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (s *Server) addSection(w http.ResponseWriter, r *http.Request, u store.User) {
+	title := clip(r.FormValue("title"), 60)
+	if title == "" {
+		title = "New section"
+	}
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		hp.Sections = append(hp.Sections, store.Section{ID: store.NewID(), Title: title, Tiles: []store.Tile{}})
+		return nil
+	})
+}
+
+func (s *Server) renameSection(w http.ResponseWriter, r *http.Request, u store.User) {
+	title := clip(r.FormValue("title"), 60)
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		sec := hp.FindSection(r.PathValue("id"))
+		if sec == nil || title == "" {
+			return errBadRequest
+		}
+		sec.Title = title
+		return nil
+	})
+}
+
+func (s *Server) deleteSection(w http.ResponseWriter, r *http.Request, u store.User) {
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		if !hp.DeleteSection(r.PathValue("id")) {
+			return errBadRequest
+		}
+		return nil
+	})
+}
+
+func (s *Server) deleteTile(w http.ResponseWriter, r *http.Request, u store.User) {
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		if !hp.DeleteTile(r.PathValue("id")) {
+			return errBadRequest
+		}
+		return nil
+	})
+}
+
+// Tile form
+
+type tileForm struct {
+	Action  string
+	Tile    store.Tile
+	IconURL string
+	Error   string
+}
+
+func (s *Server) renderTileForm(w http.ResponseWriter, u store.User, f tileForm, isError bool) {
+	if isError {
+		// Show the form again inside the dialog instead of replacing the editor.
+		w.Header().Set("HX-Retarget", "#dialog-body")
+		w.Header().Set("HX-Reswap", "innerHTML")
+	}
+	s.execute(w, "edit", "tile-form", http.StatusOK, f)
+}
+
+func (s *Server) newTileForm(w http.ResponseWriter, r *http.Request, u store.User) {
+	s.renderTileForm(w, u, tileForm{Action: "/edit/sections/" + url.PathEscape(r.PathValue("id")) + "/tiles"}, false)
+}
+
+func (s *Server) editTileForm(w http.ResponseWriter, r *http.Request, u store.User) {
+	draft, _, err := s.store.Draft(u.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	t := draft.FindTile(r.PathValue("id"))
+	if t == nil {
+		http.NotFound(w, r)
+		return
+	}
+	s.renderTileForm(w, u, tileForm{Action: "/edit/tiles/" + url.PathEscape(t.ID), Tile: *t}, false)
+}
+
+func (s *Server) addTile(w http.ResponseWriter, r *http.Request, u store.User) {
+	sectionID := r.PathValue("id")
+	f := tileForm{Action: "/edit/sections/" + url.PathEscape(sectionID) + "/tiles"}
+	in, ok := s.readTileForm(w, r, u, &f)
+	if !ok {
+		return
+	}
+	icon, ok := s.resolveIcon(w, r, u, &f, in, "", true)
+	if !ok {
+		return
+	}
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		sec := hp.FindSection(sectionID)
+		if sec == nil {
+			return errBadRequest
+		}
+		sec.Tiles = append(sec.Tiles, store.Tile{ID: store.NewID(), Title: in.title, URL: in.url, Icon: icon})
+		return nil
+	})
+}
+
+func (s *Server) updateTile(w http.ResponseWriter, r *http.Request, u store.User) {
+	tileID := r.PathValue("id")
+	draft, _, err := s.store.Draft(u.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	existing := draft.FindTile(tileID)
+	if existing == nil {
+		http.NotFound(w, r)
+		return
+	}
+	f := tileForm{Action: "/edit/tiles/" + url.PathEscape(tileID), Tile: *existing}
+	in, ok := s.readTileForm(w, r, u, &f)
+	if !ok {
+		return
+	}
+	icon, ok := s.resolveIcon(w, r, u, &f, in, existing.Icon, in.refetch)
+	if !ok {
+		return
+	}
+	s.updateDraft(w, r, u, func(hp *store.Homepage) error {
+		t := hp.FindTile(tileID)
+		if t == nil {
+			return errBadRequest
+		}
+		t.Title, t.URL, t.Icon = in.title, in.url, icon
+		return nil
+	})
+}
+
+type tileInput struct {
+	title, url, iconURL string
+	upload              []byte
+	refetch             bool
+}
+
+// readTileForm parses and validates a submitted Tile form. On failure it
+// renders the form with an error and returns false.
+func (s *Server) readTileForm(w http.ResponseWriter, r *http.Request, u store.User, f *tileForm) (tileInput, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, icons.MaxSize+1<<20)
+	if err := r.ParseMultipartForm(icons.MaxSize); err != nil && !errors.Is(err, http.ErrNotMultipart) {
+		f.Error = "The upload is too large. Icons must be 2 MB or less."
+		s.renderTileForm(w, u, *f, true)
+		return tileInput{}, false
+	}
+	in := tileInput{
+		title:   clip(r.FormValue("title"), 40),
+		url:     strings.TrimSpace(r.FormValue("url")),
+		iconURL: strings.TrimSpace(r.FormValue("icon_url")),
+		refetch: r.FormValue("refetch") != "",
+	}
+	f.Tile.Title, f.Tile.URL, f.IconURL = in.title, in.url, in.iconURL
+
+	if file, _, err := r.FormFile("icon_file"); err == nil {
+		defer file.Close()
+		in.upload, err = io.ReadAll(io.LimitReader(file, icons.MaxSize+1))
+		if err != nil || len(in.upload) > icons.MaxSize {
+			f.Error = "The upload is too large. Icons must be 2 MB or less."
+			s.renderTileForm(w, u, *f, true)
+			return tileInput{}, false
+		}
+	}
+
+	switch {
+	case in.title == "":
+		f.Error = "Enter a title."
+	case !isWebURL(in.url):
+		f.Error = "Enter a web address starting with http:// or https://."
+	case in.iconURL != "" && !isWebURL(in.iconURL):
+		f.Error = "The image URL must start with http:// or https://."
+	}
+	if f.Error != "" {
+		s.renderTileForm(w, u, *f, true)
+		return tileInput{}, false
+	}
+	return in, true
+}
+
+// resolveIcon picks the Tile's icon: an upload, then an image URL, then the
+// site's own icon when fetch is set, otherwise current. "" means placeholder.
+func (s *Server) resolveIcon(w http.ResponseWriter, r *http.Request, u store.User, f *tileForm, in tileInput, current string, fetch bool) (string, bool) {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	var icon string
+	var err error
+	switch {
+	case len(in.upload) > 0:
+		icon, err = s.icons.FromUpload(in.upload)
+	case in.iconURL != "":
+		icon, err = s.icons.FromURL(ctx, in.iconURL)
+	case fetch || current == "":
+		icon = s.icons.FromSite(ctx, in.url)
+	default:
+		icon = current
+	}
+	if err != nil {
+		f.Error = "Couldn't use that icon: " + err.Error()
+		s.renderTileForm(w, u, *f, true)
+		return "", false
+	}
+	return icon, true
+}
+
+func isWebURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+// clip trims s and shortens it to at most n characters.
+func clip(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if utf8.RuneCountInString(s) > n {
+		s = string([]rune(s)[:n])
+	}
+	return s
+}

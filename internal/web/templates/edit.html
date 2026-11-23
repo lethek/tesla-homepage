@@ -1,0 +1,86 @@
+{{define "body"}}
+<div class="editbar">
+  <strong>Edit mode</strong>
+  {{if .Resumed}}<span class="notice">You have unsaved changes from last time.</span>{{end}}
+  <span class="spacer"></span>
+  <form method="post" action="/edit/cancel"><button type="submit">Cancel</button></form>
+  <form method="post" action="/edit/done"><button type="submit" class="primary">Done</button></form>
+</div>
+<main hx-target="#editor" hx-swap="outerHTML">
+  {{template "editor" .}}
+</main>
+<dialog id="dialog"><div id="dialog-body"></div></dialog>
+{{end}}
+
+{{define "editor"}}
+<div id="editor" class="homepage editing overflow-{{.Homepage.Overflow}}">
+  <form class="settings" hx-post="/edit/settings" hx-trigger="change">
+    <label>Title <input name="title" value="{{.Homepage.Title}}" maxlength="60"></label>
+    <fieldset class="toggle">
+      <legend>Long rows</legend>
+      <label><input type="radio" name="overflow" value="wrap" {{if eq .Homepage.Overflow "wrap"}}checked{{end}}> Wrap</label>
+      <label><input type="radio" name="overflow" value="scroll" {{if eq .Homepage.Overflow "scroll"}}checked{{end}}> Scroll</label>
+    </fieldset>
+  </form>
+
+  <div class="sections" data-sortable-sections>
+    {{range .Homepage.Sections}}
+    <section class="section" data-id="{{.ID}}">
+      <div class="section-head">
+        <span class="handle" aria-label="Drag to reorder section">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2"/></svg>
+        </span>
+        <form hx-post="/edit/sections/{{.ID}}" hx-trigger="change">
+          <input name="title" value="{{.Title}}" maxlength="60" required aria-label="Section title">
+        </form>
+        <button type="button" class="danger" hx-post="/edit/sections/{{.ID}}/delete"
+          hx-confirm="Delete the section &quot;{{.Title}}&quot; and all its tiles?">Delete section</button>
+      </div>
+      <div class="row">
+        <div class="tiles" data-sortable-tiles>
+          {{range .Tiles}}
+          <div class="tile" data-id="{{.ID}}">
+            {{template "icon" .}}<span class="label">{{.Title}}</span>
+            <div class="tile-actions">
+              <button type="button" hx-get="/edit/tiles/{{.ID}}" hx-target="#dialog-body" hx-swap="innerHTML" aria-label="Edit {{.Title}}">Edit</button>
+              <button type="button" class="danger" hx-post="/edit/tiles/{{.ID}}/delete" hx-confirm="Delete &quot;{{.Title}}&quot;?" aria-label="Delete {{.Title}}">✕</button>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        <button type="button" class="tile add-tile" hx-get="/edit/sections/{{.ID}}/tiles/new" hx-target="#dialog-body" hx-swap="innerHTML">
+          <span class="icon">+</span><span class="label">Add tile</span>
+        </button>
+      </div>
+    </section>
+    {{end}}
+  </div>
+
+  <form class="add-section" hx-post="/edit/sections">
+    <input name="title" placeholder="New section title" maxlength="60" aria-label="New section title">
+    <button type="submit">Add section</button>
+  </form>
+</div>
+{{end}}
+
+{{define "tile-form"}}
+<form class="tile-form" hx-post="{{.Action}}" hx-target="#editor" hx-swap="outerHTML" hx-encoding="multipart/form-data" hx-disabled-elt="find button[type=submit]">
+  <h2>{{if .Tile.ID}}Edit tile{{else}}Add tile{{end}}</h2>
+  {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+  <label>Title <input name="title" value="{{.Tile.Title}}" maxlength="40" required></label>
+  <label>Web address <input name="url" type="url" value="{{.Tile.URL}}" placeholder="https://" required></label>
+  <fieldset>
+    <legend>Icon</legend>
+    {{if .Tile.Icon}}<div class="current-icon">{{template "icon" .Tile}} Current icon</div>{{end}}
+    <label>Image URL <input name="icon_url" type="url" value="{{.IconURL}}" placeholder="https://"></label>
+    <label>Or upload an image <input name="icon_file" type="file" accept="image/*"></label>
+    {{if .Tile.ID}}<label class="check"><input type="checkbox" name="refetch"> Fetch the icon again from the site</label>{{end}}
+    <p class="hint">Leave these empty to use the site's own icon.</p>
+  </fieldset>
+  <div class="actions">
+    <span class="htmx-indicator">Fetching icon…</span>
+    <button type="button" data-close>Cancel</button>
+    <button type="submit" class="primary">Save</button>
+  </div>
+</form>
+{{end}}

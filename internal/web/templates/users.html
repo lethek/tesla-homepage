@@ -1,0 +1,38 @@
+{{define "body"}}
+<main class="card wide">
+  <h1>Manage users</h1>
+  {{template "messages" .}}
+  <table class="users">
+    <thead><tr><th>Username</th><th>Reset password</th><th></th></tr></thead>
+    <tbody>
+    {{$me := .User.ID}}
+    {{range .Users}}
+      <tr>
+        <td>{{.Username}}{{if .Admin}} <span class="badge">Admin</span>{{end}}</td>
+        <td>
+          <form method="post" action="/admin/users/{{.ID}}/password" class="inline">
+            <input name="password" type="password" minlength="8" placeholder="New password" autocomplete="new-password" required aria-label="New password for {{.Username}}">
+            <button type="submit">Reset</button>
+          </form>
+        </td>
+        <td>
+          {{if ne .ID $me}}
+          <form method="post" action="/admin/users/{{.ID}}/delete" onsubmit="return confirm('Delete this user and their homepage?')">
+            <button type="submit" class="danger">Delete</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+
+  <h2>Add a user</h2>
+  <form method="post" action="/admin/users" class="inline">
+    <input name="username" placeholder="Username" maxlength="32" autocapitalize="none" required aria-label="Username">
+    <input name="password" type="password" minlength="8" placeholder="Initial password" autocomplete="new-password" required aria-label="Initial password">
+    <button type="submit" class="primary">Add user</button>
+  </form>
+  <p><a href="/">Back to homepage</a></p>
+</main>
+{{end}}
