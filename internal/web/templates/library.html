@@ -16,6 +16,39 @@
   <form method="post" action="/admin/library/refresh">
     <button type="submit" class="primary">Refresh now</button>
   </form>
+  <h2>Custom icons</h2>
+  <p>Your own icons are searched together with the catalogues above. The downloaded catalogues can't be changed here, and refreshing them never touches custom icons.</p>
+  {{with .Form}}
+  <ul class="custom-icons">
+    {{range .Local}}
+    <li>
+      <details>
+        <summary><img src="{{.Preview}}" alt="" width="32" height="32"> {{.Name}}</summary>
+        <form method="post" action="/admin/library/local/{{.Slug}}" enctype="multipart/form-data" class="custom-form">
+          <label>Name <input name="name" value="{{.Name}}" maxlength="40" required></label>
+          <label>Also known as <input name="aliases" value="{{.Aliases}}" placeholder="Comma separated"></label>
+          <label>Tags <input name="tags" value="{{.Tags}}" placeholder="Comma separated"></label>
+          <label>Replace image <input name="image" type="file" accept="image/*"></label>
+          <button type="submit" class="primary">Save</button>
+        </form>
+        <form method="post" action="/admin/library/local/{{.Slug}}/delete" onsubmit="return confirm('Delete this custom icon? Tiles that use it keep their copy.')">
+          <button type="submit" class="danger">Delete</button>
+        </form>
+      </details>
+    </li>
+    {{else}}
+    <li class="hint">No custom icons yet.</li>
+    {{end}}
+  </ul>
+  {{end}}
+  <h3>Add a custom icon</h3>
+  <form method="post" action="/admin/library/local" enctype="multipart/form-data" class="custom-form">
+    <label>Name <input name="name" maxlength="40" required></label>
+    <label>Also known as <input name="aliases" placeholder="Comma separated"></label>
+    <label>Tags <input name="tags" placeholder="Comma separated"></label>
+    <label>Image <input name="image" type="file" accept="image/*" required></label>
+    <button type="submit" class="primary">Add icon</button>
+  </form>
   <h2>Sources and licences</h2>
   {{template "icon-credits"}}
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>

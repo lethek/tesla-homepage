@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- Custom icons: Admins can add, edit and delete their own icons on the Icon library page. They are kept in `library-local.json` and `library-icons/` on the data volume, apart from the downloaded catalogues, and are searched together with them.
+
 ## [0.1.0] - 2026-11-23
 
 ### Added

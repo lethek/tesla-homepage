@@ -112,6 +112,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/users/{id}/delete", s.admin(s.deleteUser))
 	mux.Handle("GET /admin/library", s.admin(s.libraryPage))
 	mux.Handle("POST /admin/library/refresh", s.admin(s.refreshLibrary))
+	mux.Handle("POST /admin/library/local", s.admin(s.saveLocalIcon))
+	mux.Handle("POST /admin/library/local/{slug}", s.admin(s.saveLocalIcon))
+	mux.Handle("POST /admin/library/local/{slug}/delete", s.admin(s.deleteLocalIcon))
+	mux.Handle("GET /library/local/{slug}", s.user(s.localImage))
 
 	return http.NewCrossOriginProtection().Handler(securityHeaders(mux))
 }
@@ -316,12 +320,18 @@ type libraryStatus struct {
 	Cached  bool
 	Fetched time.Time
 	Counts  []library.Count
+	Local   []localIcon
 }
 
 func (s *Server) libraryPage(w http.ResponseWriter, r *http.Request, u store.User) {
 	msg := ""
-	if r.URL.Query().Get("done") == "refreshed" {
+	switch r.URL.Query().Get("done") {
+	case "refreshed":
 		msg = "Icon library refreshed."
+	case "saved":
+		msg = "Custom icon saved."
+	case "deleted":
+		msg = "Custom icon deleted."
 	}
 	s.renderLibrary(w, u, http.StatusOK, msg, "")
 }
@@ -335,6 +345,10 @@ func (s *Server) renderLibrary(w http.ResponseWriter, u store.User, status int, 
 	st := libraryStatus{Cached: ok}
 	if ok {
 		st.Fetched, st.Counts = cat.Fetched, cat.Counts()
+	}
+	if st.Local, err = s.localIcons(); err != nil {
+		s.fail(w, err)
+		return
 	}
 	s.render(w, "library", status, view{User: &u, Message: msg, Error: errMsg, Form: st})
 }

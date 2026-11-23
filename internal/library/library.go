@@ -146,8 +146,16 @@ type Library struct {
 	path          string
 	write         WriteFile
 
-	mu  sync.Mutex
-	cat *Catalogue
+	// LocalPath and LocalDir hold the Admin's custom icons: their metadata,
+	// in the same shape as the cached catalogue, and their image files.
+	// Custom icons are off while they are empty.
+	LocalPath string
+	LocalDir  string
+
+	mu         sync.Mutex
+	cat        *Catalogue
+	local      []Brand
+	localReady bool
 }
 
 func New(cachePath string, write WriteFile) *Library {
@@ -176,7 +184,7 @@ func parseID(id string) (prefix, slug, variant string, ok bool) {
 	if len(parts) < 2 || len(parts) > 3 {
 		return "", "", "", false
 	}
-	if !slices.ContainsFunc(externals, func(s source) bool { return s.prefix == parts[0] }) || !slugPattern.MatchString(parts[1]) {
+	if !slices.ContainsFunc(allSources(), func(s source) bool { return s.prefix == parts[0] }) || !slugPattern.MatchString(parts[1]) {
 		return "", "", "", false
 	}
 	if len(parts) == 3 {
@@ -196,6 +204,8 @@ func (l *Library) ImageURL(id string) string {
 		return l.BaseURL + "/png/" + url.PathEscape(id) + ".png"
 	}
 	switch prefix {
+	case LocalPrefix:
+		return LocalURL(slug)
 	case "si":
 		u := l.SimpleBaseURL + "/" + slug
 		if variant != "" {
@@ -229,7 +239,7 @@ func Label(id string) string {
 	if variant != "" {
 		label += " " + variant
 	}
-	for _, src := range externals {
+	for _, src := range allSources() {
 		if src.prefix == prefix {
 			return label + " (" + src.tag + ")"
 		}
@@ -237,35 +247,48 @@ func Label(id string) string {
 	return label
 }
 
-// Cached returns the cached catalogue without downloading. ok is false if
-// there is none yet.
+// Cached returns the cached catalogue, with the custom icons merged in,
+// without downloading. ok is false if there is none yet.
 func (l *Library) Cached() (cat *Catalogue, ok bool, err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if err := l.load(); err != nil {
 		return nil, false, err
 	}
-	return l.cat, l.cat != nil, nil
+	if l.cat == nil {
+		return nil, false, nil
+	}
+	merged, err := l.merged(l.cat)
+	return merged, err == nil, err
 }
 
-// Catalogue returns the cached catalogue, downloading it if there is none.
+// Catalogue returns the cached catalogue, downloading it if there is none. The
+// custom icons are merged in.
 func (l *Library) Catalogue(ctx context.Context) (*Catalogue, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if err := l.load(); err != nil {
 		return nil, err
 	}
-	if l.cat != nil {
-		return l.cat, nil
+	cat := l.cat
+	if cat == nil {
+		var err error
+		if cat, err = l.fetch(ctx); err != nil {
+			return nil, err
+		}
 	}
-	return l.fetch(ctx)
+	return l.merged(cat)
 }
 
 // Refresh downloads the catalogue again and replaces the cache.
 func (l *Library) Refresh(ctx context.Context) (*Catalogue, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.fetch(ctx)
+	cat, err := l.fetch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return l.merged(cat)
 }
 
 // load reads the cache file into memory once. Callers must hold l.mu.
@@ -630,17 +653,21 @@ func (c *Catalogue) Search(q string, limit int) []Result {
 			s = categoryScore(nq, icon.Categories)
 		}
 		if s > 0 {
-			hits = append(hits, Result{Files: icon.Files(), score: s, name: icon.Name, rank: 0})
+			hits = append(hits, Result{Files: icon.Files(), score: s, name: icon.Name, rank: 1})
 		}
 	}
-	for i, src := range externals {
+	for i, src := range allSources() {
+		rank := i + 1
+		if src.prefix == LocalPrefix {
+			rank = 0
+		}
 		for _, b := range c.External[src.prefix] {
 			s := score(nq, b.Name, append([]string{b.Slug}, b.Aliases...))
 			if s == 0 {
 				s = categoryScore(nq, b.Tags)
 			}
 			if s > 0 {
-				hits = append(hits, Result{Files: b.ids(src.prefix), score: s, name: b.Slug, rank: i + 1})
+				hits = append(hits, Result{Files: b.ids(src.prefix), score: s, name: b.Slug, rank: rank})
 			}
 		}
 	}
@@ -674,6 +701,11 @@ func (c *Catalogue) Exact(title, siteURL string) (id string, ok bool) {
 	for _, cand := range candidates {
 		if cand == "" {
 			continue
+		}
+		for _, b := range c.External[LocalPrefix] {
+			if norm(b.Name) == cand || norm(b.Slug) == cand || slices.ContainsFunc(b.Aliases, func(a string) bool { return norm(a) == cand }) {
+				return makeID(LocalPrefix, b.Slug, b.Variants[0]), true
+			}
 		}
 		for _, icon := range c.Icons {
 			if norm(icon.Name) == cand {

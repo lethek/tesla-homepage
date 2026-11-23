@@ -170,6 +170,10 @@ func parseSize(s string) int {
 	return n
 }
 
+// Ext returns the file extension for a supported image type. ok is false for
+// anything else.
+func Ext(data []byte) (ext string, ok bool) { return imageExt(data) }
+
 // imageExt sniffs data and returns the file extension for a supported image type.
 func imageExt(data []byte) (string, bool) {
 	ct := http.DetectContentType(data)

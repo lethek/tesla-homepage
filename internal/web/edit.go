@@ -423,6 +423,13 @@ func (s *Server) libraryIcon(ctx context.Context, cat *library.Catalogue, file s
 	if !cat.HasFile(file) {
 		return "", fmt.Errorf("%q is not in the icon library", file)
 	}
+	if library.IsLocal(file) {
+		data, err := s.library.LocalBytes(file)
+		if err != nil {
+			return "", err
+		}
+		return s.icons.FromUpload(data)
+	}
 	return s.icons.FromURL(ctx, s.library.ImageURL(file))
 }
 

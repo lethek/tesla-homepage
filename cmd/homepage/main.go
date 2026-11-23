@@ -30,6 +30,7 @@ func main() {
 		log.Fatalf("loading session secret: %v", err)
 	}
 	lib := library.New(st.LibraryCachePath(), store.WriteFile)
+	lib.LocalPath, lib.LocalDir = st.LocalLibraryPath(), st.LocalLibraryDir()
 	srv, err := web.New(st, &auth.Sessions{Secret: secret}, icons.New(st.SaveIcon), lib)
 	if err != nil {
 		log.Fatal(err)

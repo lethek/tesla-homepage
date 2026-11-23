@@ -284,6 +284,11 @@ func (s *Store) write(userID, name string, hp Homepage) error {
 // LibraryCachePath is where the Icon library catalogue is cached.
 func (s *Store) LibraryCachePath() string { return filepath.Join(s.dir, "library.json") }
 
+// LocalLibraryPath is where the Admin's custom Icon library entries are
+// described, and LocalLibraryDir is where their images are kept.
+func (s *Store) LocalLibraryPath() string { return filepath.Join(s.dir, "library-local.json") }
+func (s *Store) LocalLibraryDir() string  { return filepath.Join(s.dir, "library-icons") }
+
 // Icons
 
 // SaveIcon stores icon data under a content-addressed name and returns it.

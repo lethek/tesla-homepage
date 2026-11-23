@@ -247,6 +247,12 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .card form.inline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
 .card form.inline input { flex: 1; min-width: 140px; }
 
+.custom-icons { list-style: none; padding: 0; margin: 0 0 16px; }
+.custom-icons li { border-bottom: 1px solid var(--line); padding: 6px 0; }
+.custom-icons summary { display: flex; align-items: center; gap: 10px; min-height: var(--touch); cursor: pointer; }
+.custom-icons summary img { object-fit: contain; }
+.custom-icons details form { margin: 8px 0 12px; }
+
 @media (max-width: 600px) {
   .top { grid-template-columns: auto 1fr; }
   .clock { display: none; }

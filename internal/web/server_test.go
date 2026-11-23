@@ -39,6 +39,7 @@ func newEnv(t *testing.T) *env {
 	client := &http.Client{Transport: rewriteTransport{target}}
 	resolver := &icons.Resolver{Client: client, Save: st.SaveIcon}
 	lib := library.New(st.LibraryCachePath(), store.WriteFile)
+	lib.LocalPath, lib.LocalDir = st.LocalLibraryPath(), st.LocalLibraryDir()
 	lib.BaseURL, lib.Client = cdn.URL, client
 	lib.SimpleDataURL, lib.SimpleBaseURL = cdn.URL+"/si-data.json", cdn.URL+"/si"
 	lib.SelfhstURL = cdn.URL + "/sh"
