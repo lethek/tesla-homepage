@@ -14,7 +14,7 @@
       <div class="menu-items">
         <a href="/edit">Edit mode</a>
         <hr>
-        {{if .User.Admin}}<a href="/admin/users">Manage users</a><a href="/admin/library">Icon library</a>{{end}}
+        {{if .User.Admin}}<a href="/admin/users">Manage users</a><a href="/admin/library">Icon library</a><hr>{{end}}
         <a href="/account/password">Change password</a>
         <form method="post" action="/logout"><button type="submit">Log out</button></form>
       </div>
