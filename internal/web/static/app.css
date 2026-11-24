@@ -239,7 +239,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
    a heading block and stacked sections. Plain .card stays narrow for
    sign-in, welcome and confirmation screens. */
 .card.page { width: min(960px, calc(100vw - 32px)); }
-.page-head { margin-bottom: 20px; }
+.page-head { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .page-head h1 { margin-bottom: 4px; }
 .page h2 { font-size: 17px; margin: 0 0 8px; }
 .page-section + .page-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }

@@ -12,7 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- Manage users and the Icon library share one page layout, a heading with a short hint above separated sections, and leave more space above Back to homepage.
+- Manage users and the Icon library share one page layout, a heading and short hint ruled off above separated sections, and leave more space above Back to homepage.
 - Icon library comes before Manage users in the menu.
 - The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services that use the built-in icons and fullscreen tiles where they suit.
 - Tiles are about 14% larger, from 64px up to 128px square depending on screen width.
