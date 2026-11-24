@@ -18,18 +18,24 @@
       </ul>
       <details class="lib-backup"{{if .Backup}} open{{end}}>
         <summary>Export or import</summary>
-        <p class="hint">Back up your custom icons, or restore them on another install. Importing replaces any icon with the same name and keeps the rest.</p>
-        <div class="lib-backup-actions">
-          <a class="button" href="/admin/library/export">Export icons</a>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Export icons</strong><span class="hint">Download every custom icon and its image as one file.</span></div>
+          <a class="button" href="/admin/library/export">Export</a>
         </div>
-        <form method="post" action="/admin/library/import" enctype="multipart/form-data">
-          <label class="dropzone">
-            <input name="file" type="file" accept="application/json,.json" aria-label="Exported icons file" required>
-            <span class="dropzone-text">Drop an exported icons file here, or click to choose one</span>
-            <span class="dropzone-file" data-dropzone-name></span>
-          </label>
-          <button type="submit">Import icons</button>
-        </form>
+        <details class="setting-form"{{if .Backup}} open{{end}}>
+          <summary class="setting-row">
+            <span class="setting-text"><strong>Import icons</strong><span class="hint">Adds the icons in a file you exported earlier. Icons with the same name are replaced.</span></span>
+            <span class="button"><span class="when-closed">Import...</span><span class="when-open">Close</span></span>
+          </summary>
+          <form method="post" action="/admin/library/import" enctype="multipart/form-data">
+            <label class="dropzone">
+              <input name="file" type="file" accept="application/json,.json" aria-label="Exported icons file" required>
+              <span class="dropzone-text">Drop an exported file here, or click to choose one</span>
+              <span class="dropzone-file" data-dropzone-name></span>
+            </label>
+            <button type="submit" class="primary">Import icons</button>
+          </form>
+        </details>
       </details>
     </section>
 
