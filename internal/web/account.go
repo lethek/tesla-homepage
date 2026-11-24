@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/lethek/tesla-homepage/internal/auth"
 	"github.com/lethek/tesla-homepage/internal/icons"
@@ -125,7 +126,9 @@ func (s *Server) exportHomepage(w http.ResponseWriter, r *http.Request, u store.
 	s.audit(r, "homepage exported")
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
-	h.Set("Content-Disposition", `attachment; filename="homepage.json"`)
+	// Named for when it was taken, in UTC, so repeated exports don't overwrite each other.
+	name := "homepage-" + time.Now().UTC().Format("2006-01-02-150405") + "Z.json"
+	h.Set("Content-Disposition", `attachment; filename="`+name+`"`)
 	h.Set("Cache-Control", "no-store")
 	w.Write(b)
 }

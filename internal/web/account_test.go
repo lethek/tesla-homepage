@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -23,6 +24,8 @@ func (e *env) importFile(c *http.Client, content string) (*http.Response, string
 	mw.Close()
 	return e.do(c, http.MethodPost, "/account/import", &buf, mw.FormDataContentType(), false)
 }
+
+var exportName = regexp.MustCompile(`^attachment; filename="homepage-\d{4}-\d{2}-\d{2}-\d{6}Z\.json"$`)
 
 func (e *env) adminID() string {
 	u, _ := e.store.UserByUsername("admin")
@@ -88,7 +91,7 @@ func TestExportThenImportRestoresHomepage(t *testing.T) {
 	e.store.SaveHomepage(e.adminID(), hp)
 
 	resp, exported := e.get(c, "/account/export")
-	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Disposition"), "attachment") {
+	if resp.StatusCode != 200 || !exportName.MatchString(resp.Header.Get("Content-Disposition")) {
 		t.Fatalf("export: %d %v", resp.StatusCode, resp.Header)
 	}
 	e.store.ResetHomepage(e.adminID())
