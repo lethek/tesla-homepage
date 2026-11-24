@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -39,7 +40,7 @@ func (s *Server) localIcons() ([]localIcon, error) {
 
 // localImage serves a custom icon's image to any signed-in User.
 func (s *Server) localImage(w http.ResponseWriter, r *http.Request, _ store.User) {
-	path, ok := s.library.LocalFile(r.PathValue("slug"))
+	data, name, ok := s.library.LocalImage(r.PathValue("slug"))
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -47,7 +48,7 @@ func (s *Server) localImage(w http.ResponseWriter, r *http.Request, _ store.User
 	h := w.Header()
 	h.Set("Cache-Control", "private, no-cache")
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
-	http.ServeFile(w, r, path)
+	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(data))
 }
 
 // readLocalForm reads a custom icon's form. image is nil if no file was sent.

@@ -89,7 +89,16 @@ func (l *Library) merged(cat *Catalogue) (*Catalogue, error) {
 	for k, v := range cat.External {
 		c.External[k] = v
 	}
-	c.External[LocalPrefix] = l.local
+	if err := l.loadSeed(); err != nil {
+		return nil, err
+	}
+	all := slices.Clone(l.local)
+	for _, b := range l.seed {
+		if !slices.ContainsFunc(l.local, func(o Brand) bool { return o.Slug == b.Slug }) {
+			all = append(all, b)
+		}
+	}
+	c.External[LocalPrefix] = all
 	return &c, nil
 }
 
@@ -105,16 +114,21 @@ func (l *Library) LocalIcons() ([]Brand, error) {
 	return out, nil
 }
 
-// LocalFile returns the path of a custom icon's image file.
-func (l *Library) LocalFile(slug string) (string, bool) {
-	if !slugPattern.MatchString(slug) || l.LocalDir == "" {
-		return "", false
+// LocalImage returns a custom icon's image and its file name. An Admin's own
+// icon is used before a built-in one with the same slug.
+func (l *Library) LocalImage(slug string) (data []byte, name string, ok bool) {
+	if !slugPattern.MatchString(slug) {
+		return nil, "", false
 	}
-	matches, _ := filepath.Glob(filepath.Join(l.LocalDir, slug+".*"))
-	if len(matches) == 0 {
-		return "", false
+	if l.LocalDir != "" {
+		matches, _ := filepath.Glob(filepath.Join(l.LocalDir, slug+".*"))
+		if len(matches) > 0 {
+			if data, err := os.ReadFile(matches[0]); err == nil {
+				return data, filepath.Base(matches[0]), true
+			}
+		}
 	}
-	return matches[0], true
+	return l.seedImage(slug)
 }
 
 // LocalBytes reads the image of the custom icon with the given file id.
@@ -123,11 +137,11 @@ func (l *Library) LocalBytes(id string) ([]byte, error) {
 	if !ok {
 		return nil, ErrLocalNotFound
 	}
-	path, ok := l.LocalFile(slug)
+	data, _, ok := l.LocalImage(slug)
 	if !ok {
 		return nil, ErrLocalNotFound
 	}
-	return os.ReadFile(path)
+	return data, nil
 }
 
 // SaveLocal adds a custom icon, or changes the one with the given slug. An

@@ -40,6 +40,7 @@ func main() {
 	}
 	lib := library.New(st.LibraryCachePath(), store.WriteFile)
 	lib.LocalPath, lib.LocalDir = st.LocalLibraryPath(), st.LocalLibraryDir()
+	lib.Seed = library.SeedFS()
 	// Icons are never fetched from private or local networks unless listed here.
 	allowIcons, err := parsePrefixes(os.Getenv("ICON_ALLOWED_NETWORKS"))
 	if err != nil {

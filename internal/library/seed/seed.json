@@ -1,0 +1,56 @@
+{
+  "format": 4,
+  "fetched": "2026-11-24T01:14:50.698375216Z",
+  "icons": null,
+  "external": {
+    "lc": [
+      {
+        "t": "ABC iView",
+        "s": "abc-iview",
+        "a": [
+          "iView"
+        ],
+        "v": [
+          ""
+        ]
+      },
+      {
+        "t": "SBS On Demand",
+        "s": "sbs-on-demand",
+        "v": [
+          ""
+        ]
+      },
+      {
+        "t": "9Now",
+        "s": "9now",
+        "a": [
+          "Nine Now"
+        ],
+        "v": [
+          ""
+        ]
+      },
+      {
+        "t": "7plus",
+        "s": "7plus",
+        "g": [
+          "7+"
+        ],
+        "v": [
+          ""
+        ]
+      },
+      {
+        "t": "10",
+        "s": "10",
+        "a": [
+          "Channel 10"
+        ],
+        "v": [
+          ""
+        ]
+      }
+    ]
+  }
+}

@@ -7,9 +7,11 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - The Image URL field (on tiles and custom icons) accepts base64 `data:image/...` URLs. They are decoded locally, with no download, and checked like an upload.
+- Custom icons built into the image (ABC iView, SBS On Demand, 10, 7plus, 9Now). They are searchable and read-only, and an Admin's custom icon with the same slug replaces them.
 
 ### Changed
 
+- The Starter Set's ABC iView, SBS On Demand, 10, 7plus and 9Now tiles use the built-in icons.
 - The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services and fullscreen tiles where they suit.
 - Tiles are about 14% larger, from 64px up to 128px square depending on screen width.
 

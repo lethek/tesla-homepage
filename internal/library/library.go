@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -151,11 +152,17 @@ type Library struct {
 	// Custom icons are off while they are empty.
 	LocalPath string
 	LocalDir  string
+	// Seed holds custom icons built into the image (see SeedFS). They are
+	// searchable and usable like custom icons but can't be changed, and an
+	// Admin's custom icon with the same slug takes their place.
+	Seed fs.FS
 
 	mu         sync.Mutex
 	cat        *Catalogue
 	local      []Brand
 	localReady bool
+	seed       []Brand
+	seedReady  bool
 }
 
 func New(cachePath string, write WriteFile) *Library {

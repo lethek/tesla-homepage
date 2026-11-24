@@ -42,6 +42,8 @@ Brand names and logos belong to their owners. The catalogues are downloaded the 
 
 Admins can also add custom icons (name, aliases, tags and an image) from the same page. They are stored apart from the downloaded catalogues, in `library-local.json` and `library-icons/` under `DATA_DIR`, and are searched together with them. Only the custom icons can be edited or deleted, and a refresh never touches them. Tiles that used a deleted custom icon keep their copy.
 
+A few custom icons are also built into the image, from `internal/library/seed/`: ABC iView, SBS On Demand, 10, 7plus and 9Now. They are searched like any other custom icon but are read-only and don't appear on the Icon library page. A custom icon you add with the same name replaces the built-in one.
+
 ## Guessing protection
 
 Passwords are stored as salted bcrypt hashes, so precomputed (rainbow table) attacks don't apply. Guessing is slowed by lockouts, which are logged as `WARN` lines:

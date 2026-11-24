@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/lethek/tesla-homepage/internal/library"
 )
 
 // draftTile returns the only Tile in the admin's Draft.
@@ -393,6 +395,7 @@ func TestTileFormValidation(t *testing.T) {
 
 func TestStarterUsesLibrary(t *testing.T) {
 	e := newEnv(t)
+	e.server.library.Seed = library.SeedFS()
 	c := e.client()
 	e.post(c, "/setup", url.Values{"username": {"admin"}, "password": {"password1"}, "confirm": {"password1"}})
 	resp, _ := e.post(c, "/welcome", url.Values{"start": {"starter"}})
@@ -401,9 +404,16 @@ func TestStarterUsesLibrary(t *testing.T) {
 	u, _ := e.store.UserByUsername("admin")
 	hp, _, _ := e.store.Homepage(u.ID)
 	found, extras := map[string]bool{}, map[string]bool{}
+	seeded := 0
 	for _, s := range hp.Sections {
 		for _, tile := range s.Tiles {
 			switch tile.Title {
+			case "ABC iView", "SBS On Demand", "10", "7plus", "9Now":
+				// The built-in custom icons, not a download from the site.
+				if !strings.HasPrefix(tile.Library, "lc:") || tile.Icon == "" || !tile.Fullscreen {
+					t.Errorf("%s: %+v", tile.Title, tile)
+				}
+				seeded++
 			case "Plex":
 				if tile.Library == "" || tile.Plate != "" || tile.Icon == "" {
 					t.Errorf("%s: %+v", tile.Title, tile)
@@ -433,6 +443,9 @@ func TestStarterUsesLibrary(t *testing.T) {
 				}
 			}
 		}
+	}
+	if seeded != 5 {
+		t.Fatalf("%d starter tiles use built-in icons, want 5", seeded)
 	}
 	if len(found) != 1 {
 		t.Fatalf("starter tiles: %+v", found)
