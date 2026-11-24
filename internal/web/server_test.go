@@ -216,7 +216,7 @@ func TestLoginRequired(t *testing.T) {
 	e := newEnv(t)
 	e.signedInAdmin()
 	anon := e.client()
-	for _, path := range []string{"/", "/edit", "/account/password", "/admin/users", "/icons/x.png"} {
+	for _, path := range []string{"/", "/edit", "/account", "/account/reset", "/admin/users", "/icons/x.png"} {
 		resp, _ := e.get(anon, path)
 		wantRedirect(t, resp, "/login")
 	}
@@ -421,4 +421,46 @@ func TestCrossOriginPostRejected(t *testing.T) {
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("cross-site POST: %d", resp.StatusCode)
 	}
+}
+
+func TestResetAccountReturnsToWelcome(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	e.get(c, "/edit")
+	e.hxPost(c, "/edit/sections", url.Values{"title": {"Streaming"}})
+	e.post(c, "/edit/done", nil)
+	e.get(c, "/edit")
+	e.hxPost(c, "/edit/sections", url.Values{"title": {"Unsaved"}})
+	if _, body := e.get(c, "/"); !strings.Contains(body, "Streaming") {
+		t.Fatal("setup: section not published")
+	}
+
+	if _, body := e.get(c, "/account"); !strings.Contains(body, "/account/password") || !strings.Contains(body, "/account/reset") {
+		t.Fatal("account page lacks the password form or the reset link")
+	}
+	// Asking to reset only shows the warning.
+	_, body := e.get(c, "/account/reset")
+	if !strings.Contains(body, "cannot be undone") || !strings.Contains(body, "unsaved changes") {
+		t.Fatalf("no warning on the confirmation page: %s", body)
+	}
+	if _, body := e.get(c, "/"); !strings.Contains(body, "Streaming") {
+		t.Fatal("homepage lost before the reset was confirmed")
+	}
+
+	resp, _ := e.post(c, "/account/reset", nil)
+	wantRedirect(t, resp, "/welcome")
+	u, _ := e.store.UserByUsername("admin")
+	if _, ok, _ := e.store.Homepage(u.ID); ok {
+		t.Fatal("homepage survived the reset")
+	}
+	if _, ok, _ := e.store.Draft(u.ID); ok {
+		t.Fatal("draft survived the reset")
+	}
+	resp, _ = e.get(c, "/")
+	wantRedirect(t, resp, "/welcome")
+	if _, body := e.get(c, "/welcome"); !strings.Contains(body, "starter") {
+		t.Fatal("welcome screen not offered")
+	}
+	// The account itself is untouched.
+	e.login("admin", "password1")
 }

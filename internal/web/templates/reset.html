@@ -1,0 +1,16 @@
+{{define "body"}}
+<main class="card">
+  <h1>Reset your account?</h1>
+  <p class="error"><strong>This permanently deletes your homepage and cannot be undone.</strong></p>
+  <ul>
+    <li>Every section and tile you have set up is deleted.</li>
+    <li>Any unsaved changes from Edit mode are discarded.</li>
+    <li>You are taken straight to the welcome screen to start again, from the starter set or from empty.</li>
+  </ul>
+  <p>Your username, password and the other users are not affected.</p>
+  <form method="post" action="/account/reset">
+    <button type="submit" class="danger">Yes, delete everything and reset my account</button>
+  </form>
+  <p class="back"><a class="button" href="/account">Cancel</a></p>
+</main>
+{{end}}

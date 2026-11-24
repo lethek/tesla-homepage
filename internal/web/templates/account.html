@@ -1,7 +1,8 @@
 {{define "body"}}
 <main class="card">
-  <h1>Change password</h1>
+  <h1>Manage account</h1>
   {{template "messages" .}}
+  <h2>Change password</h2>
   <form method="post" action="/account/password">
     <input type="hidden" name="username" value="{{.User.Username}}" autocomplete="username">
     <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
@@ -9,6 +10,9 @@
     <label>Confirm new password <input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>
     <button type="submit" class="primary">Change password</button>
   </form>
+  <h2>Reset account</h2>
+  <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
+  <p><a class="button danger" href="/account/reset">Reset account...</a></p>
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>
 </main>
 {{end}}

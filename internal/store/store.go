@@ -262,6 +262,20 @@ func (s *Store) DiscardDraft(userID string) error {
 	return s.gcIcons()
 }
 
+// ResetHomepage deletes the User's Homepage and Draft, so they choose a
+// starting point again.
+func (s *Store) ResetHomepage(userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, f := range []string{"homepage.json", "draft.json"} {
+		err := os.Remove(filepath.Join(s.userDir(userID), f))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	return s.gcIcons()
+}
+
 // Revision identifies the contents of a Homepage or Draft. It changes
 // whenever they do.
 func Revision(hp Homepage) string {

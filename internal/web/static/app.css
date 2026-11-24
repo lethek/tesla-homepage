@@ -132,7 +132,7 @@ button, .button {
 .back { text-align: center; }
 a.button { display: inline-flex; align-items: center; text-decoration: none; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-button.danger { color: var(--danger); }
+button.danger, a.button.danger { color: var(--danger); }
 button:disabled { opacity: .5; }
 input[type=text], input:not([type]), input[type=url], input[type=password], input[type=search] {
   min-height: var(--touch); padding: 0 12px;
