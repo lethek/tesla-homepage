@@ -20,7 +20,8 @@ type accountInfo struct {
 	HasHomepage bool
 	Sections    int
 	Tiles       int
-	Unsaved     bool // Edit mode has changes that are not published
+	Unsaved     bool   // Edit mode has changes that are not published
+	Open        string // the form to show expanded: "password" or "import"
 }
 
 func (s *Server) accountInfo(u store.User) (accountInfo, error) {
@@ -41,11 +42,18 @@ func (s *Server) accountInfo(u store.User) (accountInfo, error) {
 }
 
 func (s *Server) renderAccount(w http.ResponseWriter, u store.User, status int, msg, errMsg string) {
+	s.renderAccountOpen(w, u, status, msg, errMsg, "")
+}
+
+// renderAccountOpen renders the page with one of its forms expanded, so a
+// failed attempt shows the form again.
+func (s *Server) renderAccountOpen(w http.ResponseWriter, u store.User, status int, msg, errMsg, open string) {
 	info, err := s.accountInfo(u)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	info.Open = open
 	s.render(w, "account", status, view{User: &u, Message: msg, Error: errMsg, Form: info})
 }
 
@@ -127,7 +135,7 @@ func (s *Server) exportHomepage(w http.ResponseWriter, r *http.Request, u store.
 func (s *Server) importHomepage(w http.ResponseWriter, r *http.Request, u store.User) {
 	fail := func(msg string) {
 		s.auditFailed(r, "homepage import failed", "reason", msg)
-		s.renderAccount(w, u, http.StatusUnprocessableEntity, "", msg)
+		s.renderAccountOpen(w, u, http.StatusUnprocessableEntity, "", msg, "import")
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxImportBytes+1<<20)
 	if err := r.ParseMultipartForm(maxImportBytes); err != nil {

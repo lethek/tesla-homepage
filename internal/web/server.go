@@ -551,20 +551,20 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, u store.
 	// Someone holding a stolen session could otherwise guess the current password.
 	key := auth.Key("password", u.Username)
 	if !s.admit(w, r, "password change", func(status int, msg string) {
-		s.renderAccount(w, u, status, "", msg)
+		s.renderAccountOpen(w, u, status, "", msg, "password")
 	}, auth.Limit{Key: key, Max: guessesPerUser}) {
 		return
 	}
 	if !auth.CheckPassword(u.PasswordHash, r.FormValue("current")) {
 		s.auditFailed(r, "password change failed", "reason", "wrong current password")
-		s.renderAccount(w, u, http.StatusUnprocessableEntity, "", "Current password is wrong.")
+		s.renderAccountOpen(w, u, http.StatusUnprocessableEntity, "", "Current password is wrong.", "password")
 		return
 	}
 	s.throttle.Reset(key) // the current password was right
 	password := r.FormValue("password")
 	if msg := validateCredentials(u.Username, password, r.FormValue("confirm")); msg != "" {
 		s.auditFailed(r, "password change failed", "reason", msg)
-		s.renderAccount(w, u, http.StatusUnprocessableEntity, "", msg)
+		s.renderAccountOpen(w, u, http.StatusUnprocessableEntity, "", msg, "password")
 		return
 	}
 	hash, err := auth.HashPassword(password)
