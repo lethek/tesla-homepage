@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - The fullscreen button at the top right of the page, which doesn't work in the Tesla browser. Use a tile's Open fullscreen option instead.
 
 ### Fixed
+- Errors from Change password and the import forms (account and Icon library) show inside the opened form, scrolled into view, instead of at the top of the page.
 
 - Damaged, truncated or oversize (over 16 megapixels) images are refused when uploaded, downloaded, decoded from a `data:` URL or imported, instead of being saved as broken icons.
 - Escape sometimes had to be pressed more than once before it left a page.

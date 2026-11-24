@@ -4,7 +4,7 @@
     <h1>Manage account</h1>
     <p class="hint">Signed in as <strong>{{.User.Username}}</strong>{{if .User.Admin}} <span class="badge">Admin</span>{{end}}</p>
   </header>
-  {{template "messages" .}}
+  {{if not .Form.Open}}{{template "messages" .}}{{end}}
   {{with .Form}}
   <section class="page-section">
     <h2>Your homepage</h2>
@@ -26,6 +26,7 @@
         <span class="button"><span class="when-closed">Import...</span><span class="when-open">Close</span></span>
       </summary>
       <form method="post" action="/account/import" enctype="multipart/form-data">
+        {{if and (eq $.Form.Open "import") $.Error}}<p class="error" role="alert">{{$.Error}}</p>{{end}}
         <label class="dropzone">
           <input name="file" type="file" accept="application/json,.json" aria-label="Exported file" required>
           <span class="dropzone-text">Drop an exported file here, or click to choose one</span>
@@ -48,6 +49,7 @@
         <span class="button"><span class="when-closed">Change...</span><span class="when-open">Close</span></span>
       </summary>
       <form method="post" action="/account/password">
+        {{if and (eq $.Form.Open "password") $.Error}}<p class="error" role="alert">{{$.Error}}</p>{{end}}
         <input type="hidden" name="username" value="{{$.User.Username}}" autocomplete="username">
         <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
         <label>New password <input name="password" type="password" minlength="8" autocomplete="new-password" required></label>

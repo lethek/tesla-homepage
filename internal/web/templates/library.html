@@ -4,7 +4,7 @@
     <h1>Icon library</h1>
     <p class="hint">Ready-made icons for Tiles, from the catalogues and from your own uploads. Both are searched together.</p>
   </header>
-  {{template "messages" .}}
+  {{if not .Form.Backup}}{{template "messages" .}}{{end}}
   {{with .Form}}
   <div class="page-cols">
     <section class="page-section lib-custom">
@@ -28,6 +28,7 @@
             <span class="button"><span class="when-closed">Import...</span><span class="when-open">Close</span></span>
           </summary>
           <form method="post" action="/admin/library/import" enctype="multipart/form-data">
+            {{if and .Backup $.Error}}<p class="error" role="alert">{{$.Error}}</p>{{end}}
             <label class="dropzone">
               <input name="file" type="file" accept="application/json,.json" aria-label="Exported icons file" required>
               <span class="dropzone-text">Drop an exported file here, or click to choose one</span>

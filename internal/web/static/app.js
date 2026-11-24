@@ -35,6 +35,10 @@
     e.target.elements.confirm_rev.value = editor ? editor.dataset.rev : "";
   });
 
+  // An error inside an opened form may be below the fold after the page reloads.
+  var formError = document.querySelector(".setting-form [role=alert]");
+  if (formError) formError.scrollIntoView({ block: "center" });
+
   // Clock
   var clock = document.querySelector("[data-clock]");
   function tick() {

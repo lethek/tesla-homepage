@@ -226,3 +226,14 @@ func TestImportKeepsEmptySectionTitles(t *testing.T) {
 		t.Fatalf("imported sections: %+v", got.Sections)
 	}
 }
+
+func TestFormErrorsShowInsideTheirForm(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	_, body := e.post(c, "/account/password", url.Values{"current": {"wrong"}, "password": {"newpassword1"}, "confirm": {"newpassword1"}})
+	at := strings.Index(body, `role="alert"`)
+	form := strings.Index(body, `action="/account/password"`)
+	if at < 0 || form < 0 || at < form || strings.Count(body, `role="alert"`) != 1 {
+		t.Fatalf("error at %d, password form at %d, alerts %d", at, form, strings.Count(body, `role="alert"`))
+	}
+}
