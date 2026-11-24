@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- A section can have an empty title, when renaming it in Edit mode or in an imported file. The homepage then shows no heading for it.
 - File uploads (tile icons, custom icons and homepage import) use a drop zone: drag a file onto it, or click it to choose one.
 - Manage users and the Icon library share one page layout, a heading and short hint ruled off above separated sections, and leave more space above Back to homepage.
 - Icon library comes before Manage users in the menu.
