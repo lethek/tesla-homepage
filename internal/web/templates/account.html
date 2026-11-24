@@ -5,6 +5,7 @@
     <p class="hint">Change your password, or start your homepage again from scratch.</p>
   </header>
   {{template "messages" .}}
+  <div class="page-cols">
   <section class="page-section">
     <h2>Change password</h2>
     <form method="post" action="/account/password">
@@ -15,11 +16,14 @@
       <button type="submit" class="primary">Change password</button>
     </form>
   </section>
-  <section class="page-section">
-    <h2>Reset account</h2>
-    <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
-    <p><a class="button danger" href="/account/reset">Reset account...</a></p>
-  </section>
+  <aside class="page-side">
+    <section class="page-section">
+      <h2>Reset account</h2>
+      <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
+      <p><a class="button danger" href="/account/reset">Reset account...</a></p>
+    </section>
+  </aside>
+  </div>
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>
 </main>
 {{end}}

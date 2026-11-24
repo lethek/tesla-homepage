@@ -6,7 +6,7 @@
   </header>
   {{template "messages" .}}
   {{with .Form}}
-  <div class="lib-layout">
+  <div class="page-cols">
     <section class="page-section lib-custom">
       <h2>Custom icons</h2>
       <p class="hint">Only custom icons can be edited or deleted. Refreshing the catalogues never touches them.</p>
@@ -18,7 +18,7 @@
       </ul>
     </section>
 
-    <aside class="lib-side">
+    <aside class="page-side">
       <section class="page-section">
         <h2>Catalogues</h2>
         {{if .Cached}}
