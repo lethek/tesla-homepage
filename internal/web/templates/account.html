@@ -15,14 +15,14 @@
     <p class="hint">You haven't set up a homepage yet.</p>
     {{end}}
     {{if .HasHomepage}}
-    <div class="row">
-      <div class="row-text"><strong>Export homepage</strong><span class="hint">Download your sections, tiles and icons as one file.</span></div>
+    <div class="setting-row">
+      <div class="setting-text"><strong>Export homepage</strong><span class="hint">Download your sections, tiles and icons as one file.</span></div>
       <a class="button" href="/account/export">Export</a>
     </div>
     {{end}}
-    <details class="row-form"{{if eq .Open "import"}} open{{end}}>
-      <summary class="row">
-        <span class="row-text"><strong>Import homepage</strong><span class="hint">Load a file you exported earlier.</span></span>
+    <details class="setting-form"{{if eq .Open "import"}} open{{end}}>
+      <summary class="setting-row">
+        <span class="setting-text"><strong>Import homepage</strong><span class="hint">Load a file you exported earlier.</span></span>
         <span class="button">Import...</span>
       </summary>
       <form method="post" action="/account/import" enctype="multipart/form-data">
@@ -35,9 +35,9 @@
 
   <section class="page-section">
     <h2>Security</h2>
-    <details class="row-form"{{if eq .Open "password"}} open{{end}}>
-      <summary class="row">
-        <span class="row-text"><strong>Change password</strong><span class="hint">Other devices are signed out when you change it.</span></span>
+    <details class="setting-form"{{if eq .Open "password"}} open{{end}}>
+      <summary class="setting-row">
+        <span class="setting-text"><strong>Change password</strong><span class="hint">Other devices are signed out when you change it.</span></span>
         <span class="button">Change...</span>
       </summary>
       <form method="post" action="/account/password">
@@ -48,21 +48,21 @@
         <button type="submit" class="primary">Change password</button>
       </form>
     </details>
-    <div class="row">
-      <div class="row-text"><strong>Sign out other devices</strong><span class="hint">Keeps you signed in here, for example after using a shared screen.</span></div>
+    <div class="setting-row">
+      <div class="setting-text"><strong>Sign out other devices</strong><span class="hint">Keeps you signed in here, for example after using a shared screen.</span></div>
       <form method="post" action="/account/signout"><button type="submit">Sign out others</button></form>
     </div>
   </section>
 
   <section class="page-section">
     <h2>Danger zone</h2>
-    <div class="row">
-      <div class="row-text"><strong>Reset account</strong><span class="hint">Deletes your homepage and starts again from the starter set or empty.</span></div>
+    <div class="setting-row">
+      <div class="setting-text"><strong>Reset account</strong><span class="hint">Deletes your homepage and starts again from the starter set or empty.</span></div>
       <a class="button danger" href="/account/reset">Reset...</a>
     </div>
     {{if not $.User.Admin}}
-    <div class="row">
-      <div class="row-text"><strong>Delete account</strong><span class="hint">Permanently deletes your account and homepage.</span></div>
+    <div class="setting-row">
+      <div class="setting-text"><strong>Delete account</strong><span class="hint">Permanently deletes your account and homepage.</span></div>
       <a class="button danger" href="/account/delete">Delete...</a>
     </div>
     {{end}}
