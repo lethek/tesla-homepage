@@ -8,18 +8,22 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - The Image URL field (on tiles and custom icons) accepts base64 `data:image/...` URLs. They are decoded locally, with no download, and checked like an upload.
 - Custom icons built into the image (ABC iView, SBS On Demand, 10, 7plus, 9Now). They are searchable and read-only, and an Admin's custom icon with the same slug replaces them.
+- Manage account page, which replaces Change password in the menu. It shows who you are and how many sections and tiles you have, and lets you change your password, sign out other devices, export your homepage with its icons to a file, import such a file, and reset your homepage back to the welcome screen. Users other than the Admin can also delete their account after re-entering their password. Import, reset and delete ask for confirmation first, and Escape cancels the reset and delete confirmation pages.
 
 ### Changed
 
-- The Manage account page also shows who you are and how many sections and tiles you have, and can sign out other devices, export your homepage with its icons to a file, import such a file (replacing the current homepage and draft), and, for users other than the Admin, delete the account after re-entering the password.
-- The menu's Change password option is now Manage account, a page with the password form and a new Reset account option. Reset account deletes the user's homepage and any draft, after a confirmation page that warns it can't be undone, and returns them to the welcome screen to start empty or from the starter set.
-- The Starter Set's ABC iView, SBS On Demand, 10, 7plus and 9Now tiles use the built-in icons.
-- The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services and fullscreen tiles where they suit.
+- Manage users and the Icon library share one page layout, a heading with a short hint above separated sections, and leave more space above Back to homepage.
+- Icon library comes before Manage users in the menu.
+- The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services that use the built-in icons and fullscreen tiles where they suit.
 - Tiles are about 14% larger, from 64px up to 128px square depending on screen width.
 
 ### Removed
 
 - The fullscreen button at the top right of the page, which doesn't work in the Tesla browser. Use a tile's Open fullscreen option instead.
+
+### Fixed
+
+- Escape sometimes had to be pressed more than once before it left a page.
 
 ## [0.2.1] - 2026-11-23
 

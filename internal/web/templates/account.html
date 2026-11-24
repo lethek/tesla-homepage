@@ -20,10 +20,10 @@
       <a class="button" href="/account/export">Export</a>
     </div>
     {{end}}
-    <details class="setting-form"{{if eq .Open "import"}} open{{end}}>
+    <details class="setting-form" name="account-form"{{if eq .Open "import"}} open{{end}}>
       <summary class="setting-row">
         <span class="setting-text"><strong>Import homepage</strong><span class="hint">Load a file you exported earlier.</span></span>
-        <span class="button">Import...</span>
+        <span class="button"><span class="when-closed">Import...</span><span class="when-open">Close</span></span>
       </summary>
       <form method="post" action="/account/import" enctype="multipart/form-data">
         <input name="file" type="file" accept="application/json,.json" aria-label="Exported file" required>
@@ -35,10 +35,14 @@
 
   <section class="page-section">
     <h2>Security</h2>
-    <details class="setting-form"{{if eq .Open "password"}} open{{end}}>
+    <div class="setting-row">
+      <div class="setting-text"><strong>Sign out other devices</strong><span class="hint">Keeps you signed in here, for example after using a shared screen.</span></div>
+      <form method="post" action="/account/signout"><button type="submit">Sign out others</button></form>
+    </div>
+    <details class="setting-form" name="account-form"{{if eq .Open "password"}} open{{end}}>
       <summary class="setting-row">
         <span class="setting-text"><strong>Change password</strong><span class="hint">Other devices are signed out when you change it.</span></span>
-        <span class="button">Change...</span>
+        <span class="button"><span class="when-closed">Change...</span><span class="when-open">Close</span></span>
       </summary>
       <form method="post" action="/account/password">
         <input type="hidden" name="username" value="{{$.User.Username}}" autocomplete="username">
@@ -48,10 +52,6 @@
         <button type="submit" class="primary">Change password</button>
       </form>
     </details>
-    <div class="setting-row">
-      <div class="setting-text"><strong>Sign out other devices</strong><span class="hint">Keeps you signed in here, for example after using a shared screen.</span></div>
-      <form method="post" action="/account/signout"><button type="submit">Sign out others</button></form>
-    </div>
   </section>
 
   <section class="page-section">
