@@ -14,15 +14,12 @@ import (
 )
 
 // importFile posts an exported file to the import form.
-func (e *env) importFile(c *http.Client, content string, confirm bool) (*http.Response, string) {
+func (e *env) importFile(c *http.Client, content string) (*http.Response, string) {
 	e.t.Helper()
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	fw, _ := mw.CreateFormFile("file", "homepage.json")
 	fw.Write([]byte(content))
-	if confirm {
-		mw.WriteField("confirm", "1")
-	}
 	mw.Close()
 	return e.do(c, http.MethodPost, "/account/import", &buf, mw.FormDataContentType(), false)
 }
@@ -96,15 +93,7 @@ func TestExportThenImportRestoresHomepage(t *testing.T) {
 	}
 	e.store.ResetHomepage(e.adminID())
 
-	// Without the confirmation box nothing is imported.
-	if resp, _ := e.importFile(c, exported, false); resp.StatusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("import without confirmation: %d", resp.StatusCode)
-	}
-	if _, ok, _ := e.store.Homepage(e.adminID()); ok {
-		t.Fatal("imported without confirmation")
-	}
-
-	resp, body := e.importFile(c, exported, true)
+	resp, body := e.importFile(c, exported)
 	if resp.StatusCode != 200 || !strings.Contains(body, "Imported 1 section and 2 tiles") {
 		t.Fatalf("import: %d %s", resp.StatusCode, body)
 	}
@@ -130,7 +119,7 @@ func TestImportDiscardsDraft(t *testing.T) {
 	e.get(c, "/edit")
 	e.hxPost(c, "/edit/sections", url.Values{"title": {"Unsaved"}})
 	file := `{"format":"tesla-homepage","version":1,"homepage":{"title":"New","overflow":"wrap","sections":[]}}`
-	if resp, body := e.importFile(c, file, true); resp.StatusCode != 200 {
+	if resp, body := e.importFile(c, file); resp.StatusCode != 200 {
 		t.Fatalf("import: %d %s", resp.StatusCode, body)
 	}
 	if _, ok, _ := e.store.Draft(e.adminID()); ok {
@@ -153,7 +142,7 @@ func TestImportRejectsBadFiles(t *testing.T) {
 		"script url":    tile("X", "javascript:alert(1)"),
 		"no title":      tile("", "https://example.com"),
 	} {
-		if resp, _ := e.importFile(c, file, true); resp.StatusCode != http.StatusUnprocessableEntity {
+		if resp, _ := e.importFile(c, file); resp.StatusCode != http.StatusUnprocessableEntity {
 			t.Errorf("%s: status %d, want 422", name, resp.StatusCode)
 		}
 	}
@@ -174,7 +163,7 @@ func TestImportDropsUnusableIcons(t *testing.T) {
 		}}}},
 		"icons": map[string]string{"bad.png": notImage},
 	})
-	resp, body := e.importFile(c, string(file), true)
+	resp, body := e.importFile(c, string(file))
 	if resp.StatusCode != 200 || !strings.Contains(body, "2 tiles had no usable icon") {
 		t.Fatalf("import: %d %s", resp.StatusCode, body)
 	}

@@ -22,12 +22,11 @@
     {{end}}
     <details class="setting-form" name="account-form"{{if eq .Open "import"}} open{{end}}>
       <summary class="setting-row">
-        <span class="setting-text"><strong>Import homepage</strong><span class="hint">Load a file you exported earlier.</span></span>
+        <span class="setting-text"><strong>Import homepage</strong><span class="hint">Replaces your homepage, and any unsaved changes, with a file you exported earlier.</span></span>
         <span class="button"><span class="when-closed">Import...</span><span class="when-open">Close</span></span>
       </summary>
       <form method="post" action="/account/import" enctype="multipart/form-data">
         <input name="file" type="file" accept="application/json,.json" aria-label="Exported file" required>
-        <label class="check"><input type="checkbox" name="confirm" value="1" required> Replace my current homepage and discard any unsaved changes</label>
         <button type="submit" class="primary">Import homepage</button>
       </form>
     </details>

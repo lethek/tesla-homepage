@@ -142,10 +142,6 @@ func (s *Server) importHomepage(w http.ResponseWriter, r *http.Request, u store.
 		fail("The file is too large.")
 		return
 	}
-	if r.FormValue("confirm") != "1" {
-		fail("Tick the box to confirm that your current homepage will be replaced.")
-		return
-	}
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		fail("Choose an exported homepage file.")
