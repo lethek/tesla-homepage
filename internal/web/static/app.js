@@ -42,16 +42,6 @@
   tick();
   setInterval(tick, 1000);
 
-  // Fullscreen button, shown only where the browser supports it.
-  var fs = document.querySelector("[data-fullscreen]");
-  if (fs && document.fullscreenEnabled) {
-    fs.hidden = false;
-    fs.addEventListener("click", function () {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen();
-    });
-  }
-
   // Close the menu when tapping elsewhere.
   document.addEventListener("click", function (e) {
     document.querySelectorAll("details.menu[open]").forEach(function (d) {

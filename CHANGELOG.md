@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services and fullscreen tiles where they suit.
 - Tiles are about 14% larger, from 64px up to 128px square depending on screen width.
 
+### Removed
+
+- The fullscreen button at the top right of the page, which doesn't work in the Tesla browser. Use a tile's Open fullscreen option instead.
+
 ## [0.2.1] - 2026-11-23
 
 ### Added
