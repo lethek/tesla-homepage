@@ -1,5 +1,5 @@
 // Package store persists Users, Homepages, Drafts and icons as files under a
-// data directory. See docs/adr/0001-json-file-per-user-storage.md.
+// data directory.
 package store
 
 import (
