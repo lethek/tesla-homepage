@@ -190,4 +190,43 @@
       });
     });
   }
+
+  // Drop zones: a file input inside a label, so clicking it opens the file
+  // chooser. Dropping a file onto it fills the input. Listeners sit on the
+  // document so zones loaded later by htmx work too.
+  function zoneOf(e) { return e.target.closest && e.target.closest(".dropzone"); }
+  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, "Files") >= 0; }
+  ["dragenter", "dragover"].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      if (!hasFiles(e)) return;
+      // Stop a file dropped outside a zone from replacing the page.
+      e.preventDefault();
+      var zone = zoneOf(e);
+      e.dataTransfer.dropEffect = zone ? "copy" : "none";
+      if (zone) zone.classList.add("dragging");
+    });
+  });
+  document.addEventListener("dragleave", function (e) {
+    var zone = zoneOf(e);
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove("dragging");
+  });
+  document.addEventListener("drop", function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    var zone = zoneOf(e);
+    if (!zone) return;
+    zone.classList.remove("dragging");
+    var input = zone.querySelector("input[type=file]");
+    var dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  document.addEventListener("change", function (e) {
+    var zone = zoneOf(e);
+    if (!zone || e.target.type !== "file") return;
+    var file = e.target.files[0];
+    zone.querySelector("[data-dropzone-name]").textContent = file ? file.name : "";
+    zone.classList.toggle("has-file", !!file);
+  });
 })();

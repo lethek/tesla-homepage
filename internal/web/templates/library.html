@@ -74,7 +74,11 @@
     </div>
     {{if .Slug}}<div class="panel panel-keep current-icon"><img src="{{.Preview}}" alt="" width="40" height="40"> Keep the current image.</div>{{end}}
     <div class="panel panel-upload">
-      <label>Image file <input name="image" type="file" accept="image/*"></label>
+      <label class="dropzone">
+        <input name="image" type="file" accept="image/*" aria-label="Image file">
+        <span class="dropzone-text">Drop an image here, or click to choose one</span>
+        <span class="dropzone-file" data-dropzone-name></span>
+      </label>
     </div>
     <div class="panel panel-url">
       <label>Image web address <input name="icon_url" type="url" placeholder="https://"></label>

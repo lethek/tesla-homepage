@@ -26,7 +26,11 @@
         <span class="button"><span class="when-closed">Import...</span><span class="when-open">Close</span></span>
       </summary>
       <form method="post" action="/account/import" enctype="multipart/form-data">
-        <input name="file" type="file" accept="application/json,.json" aria-label="Exported file" required>
+        <label class="dropzone">
+          <input name="file" type="file" accept="application/json,.json" aria-label="Exported file" required>
+          <span class="dropzone-text">Drop an exported file here, or click to choose one</span>
+          <span class="dropzone-file" data-dropzone-name></span>
+        </label>
         <button type="submit" class="primary">Import homepage</button>
       </form>
     </details>
