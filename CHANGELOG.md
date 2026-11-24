@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- File uploads (tile icons, custom icons and homepage import) use a drop zone: drag a file onto it, or click it to choose one.
 - Manage users and the Icon library share one page layout, a heading and short hint ruled off above separated sections, and leave more space above Back to homepage.
 - Icon library comes before Manage users in the menu.
 - The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services that use the built-in icons and fullscreen tiles where they suit.

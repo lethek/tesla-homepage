@@ -318,7 +318,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .users tr { display: block; padding: 8px 0; }
 }
 
-/* File drop zones (see app.js). The input covers nothing and stays focusable. */
+/* File drop zones (see app.js). The invisible input covers the zone, so it
+   takes clicks and keyboard focus. */
 label.dropzone {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   min-height: 96px; padding: 16px; text-align: center; cursor: pointer;
