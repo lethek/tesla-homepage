@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - The Image URL field (on tiles and custom icons) accepts base64 `data:image/...` URLs. They are decoded locally, with no download, and checked like an upload.
 
+### Changed
+
+- The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services and fullscreen tiles where they suit.
+
 ## [0.2.1] - 2026-11-23
 
 ### Added

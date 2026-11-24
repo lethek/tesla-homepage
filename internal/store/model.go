@@ -85,17 +85,21 @@ func StarterHomepage() Homepage {
 	}
 	hp := EmptyHomepage()
 	hp.Sections = []Section{
-		section("Streaming",
-			Tile{Title: "YouTube", URL: "https://www.youtube.com"},
-			Tile{Title: "Netflix", URL: "https://www.netflix.com"},
-			Tile{Title: "Disney+", URL: "https://www.disneyplus.com"},
+		section("Video",
 			// Library names the icon file to use where the base icon is
 			// dark and would be hard to see on a dark tile.
 			Tile{Title: "Prime Video", URL: "https://www.primevideo.com", Library: "prime-video-light"},
+			Tile{Title: "Crunchyroll", URL: "https://www.crunchyroll.com", Fullscreen: true},
 			Tile{Title: "Plex", URL: "https://app.plex.tv"},
-			Tile{Title: "Crunchyroll", URL: "https://www.crunchyroll.com"},
+			Tile{Title: "YouTube Kids", URL: "https://www.youtubekids.com/"},
+			Tile{Title: "Viki", URL: "https://www.viki.com", Fullscreen: true},
+			Tile{Title: "ABC iView", URL: "https://iview.abc.net.au/", Fullscreen: true},
+			Tile{Title: "SBS On Demand", URL: "https://www.sbs.com.au/ondemand", Fullscreen: true},
+			Tile{Title: "10", URL: "https://10.com.au", Fullscreen: true},
+			Tile{Title: "7plus", URL: "https://7plus.com.au", Fullscreen: true},
+			Tile{Title: "9Now", URL: "https://www.9now.com.au", Fullscreen: true},
 		),
-		section("Music",
+		section("Audio",
 			Tile{Title: "Spotify", URL: "https://open.spotify.com"},
 			Tile{Title: "SoundCloud", URL: "https://soundcloud.com", Library: "si:soundcloud"},
 		),
@@ -103,6 +107,11 @@ func StarterHomepage() Homepage {
 			Tile{Title: "Google", URL: "https://www.google.com"},
 			Tile{Title: "Wikipedia", URL: "https://www.wikipedia.org"},
 			Tile{Title: "Reddit", URL: "https://www.reddit.com"},
+		),
+		section("Artificial Intelligence",
+			Tile{Title: "Claude", URL: "https://claude.ai"},
+			Tile{Title: "ChatGPT", URL: "https://chatgpt.com"},
+			Tile{Title: "Gemini", URL: "https://gemini.google.com"},
 		),
 	}
 	return hp

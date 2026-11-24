@@ -404,7 +404,7 @@ func TestStarterUsesLibrary(t *testing.T) {
 	for _, s := range hp.Sections {
 		for _, tile := range s.Tiles {
 			switch tile.Title {
-			case "Netflix", "YouTube":
+			case "Plex":
 				if tile.Library == "" || tile.Plate != "" || tile.Icon == "" {
 					t.Errorf("%s: %+v", tile.Title, tile)
 				}
@@ -424,7 +424,7 @@ func TestStarterUsesLibrary(t *testing.T) {
 				if tile.Library != "si:soundcloud" || !strings.HasSuffix(tile.Icon, ".svg") {
 					t.Errorf("SoundCloud: %+v", tile)
 				}
-			case "Plex", "Crunchyroll":
+			case "Crunchyroll", "Claude":
 				extras[tile.Title] = true
 			case "Reddit":
 				// Not in the fake library and the fake site has no icon.
@@ -434,11 +434,11 @@ func TestStarterUsesLibrary(t *testing.T) {
 			}
 		}
 	}
-	if len(found) != 2 {
+	if len(found) != 1 {
 		t.Fatalf("starter tiles: %+v", found)
 	}
 	if len(extras) != 2 {
-		t.Fatalf("starter set is missing Plex or Crunchyroll: %+v", extras)
+		t.Fatalf("starter set is missing Crunchyroll or Claude: %+v", extras)
 	}
 }
 
