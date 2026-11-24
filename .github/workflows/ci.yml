@@ -5,6 +5,12 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # Builds the release binaries for a tag that was pushed before they existed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and release, such as v0.3.0
+        required: true
 
 permissions:
   contents: read
@@ -55,3 +61,72 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  release:
+    needs: image
+    # A tag push waits for its image. A manual run has no image job to wait for.
+    if: always() && (needs.image.result == 'success' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Build binaries
+        run: |
+          set -eu
+          version="${TAG#v}"
+          mkdir dist
+          for target in linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            name="homepage_${version}_${os}_${arch}"
+            exe=homepage
+            [ "$os" = windows ] && exe=homepage.exe
+            mkdir "dist/$name"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="-s -w" -o "dist/$name/$exe" ./cmd/homepage
+            cp README.md CHANGELOG.md "dist/$name/"
+            if [ "$os" = windows ]; then
+              (cd dist && zip -qr "$name.zip" "$name")
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "$name"
+            fi
+            rm -r "dist/$name"
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          version="${TAG#v}"
+          # Use this version's section of the changelog as the release notes.
+          awk -v v="$version" '/^\[[^]]+\]: / { p = 0 } /^## \[/ { p = index($0, "[" v "]") == 4; next } p' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then
+            link=$(sed -n "s|^\[$version\]: \(.*/compare/.*\)|\1|p" CHANGELOG.md)
+            {
+              echo
+              echo "## Installing"
+              echo
+              echo "- Container image: \`docker pull ghcr.io/${GITHUB_REPOSITORY}:$version\`"
+              echo "- Binary: download the archive for your system below (\`linux\` or \`windows\`, then \`amd64\` for Intel and AMD or \`arm64\`), unpack it and run \`homepage\`. Set \`DATA_DIR\` to where its data should live."
+              echo "- Check a download with \`sha256sum -c SHA256SUMS --ignore-missing\`."
+              [ -z "$link" ] || { echo; echo "Full changelog: $link"; }
+            } >> notes.md
+            notes=(--notes-file notes.md)
+          else
+            notes=(--generate-notes)
+          fi
+          prerelease=()
+          case "$version" in *-*) prerelease=(--prerelease) ;; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" "${notes[@]}" "${prerelease[@]}" dist/*
+          fi

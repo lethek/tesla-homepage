@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Releases for each version, with binaries for Linux and Windows (amd64 and arm64), checksums and the changelog as release notes.
+
 ## [0.3.0] - 2026-11-24
 
 ### Added
