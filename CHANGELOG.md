@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
 ### Added
 
 - The Image URL field (on tiles and custom icons) accepts base64 `data:image/...` URLs. They are decoded locally, with no download, and checked like an upload.
@@ -25,8 +27,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - The fullscreen button at the top right of the page, which doesn't work in the Tesla browser. Use a tile's Open fullscreen option instead.
 
 ### Fixed
-- Errors from Change password and the import forms (account and Icon library) show inside the opened form, scrolled into view, instead of at the top of the page.
 
+- Errors from Change password and the import forms (account and Icon library) show inside the opened form, scrolled into view, instead of at the top of the page.
 - Damaged, truncated or oversize (over 16 megapixels) images are refused when uploaded, downloaded, decoded from a `data:` URL or imported, instead of being saved as broken icons.
 - Escape sometimes had to be pressed more than once before it left a page.
 
@@ -67,7 +69,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Per-tile Plate background colour and padding (0 to 30%) for any icon.
 - Container image published to GHCR for amd64 and arm64 by GitHub Actions.
 
-[Unreleased]: https://github.com/lethek/tesla-homepage/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/lethek/tesla-homepage/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lethek/tesla-homepage/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/lethek/tesla-homepage/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/lethek/tesla-homepage/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/lethek/tesla-homepage/releases/tag/v0.1.0
