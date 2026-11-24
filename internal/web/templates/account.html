@@ -2,28 +2,65 @@
 <main class="card page">
   <header class="page-head">
     <h1>Manage account</h1>
-    <p class="hint">Change your password, or start your homepage again from scratch.</p>
+    <p class="hint">Signed in as <strong>{{.User.Username}}</strong>{{if .User.Admin}} <span class="badge">Admin</span>{{end}}.</p>
   </header>
   {{template "messages" .}}
-  <div class="page-cols">
-  <section class="page-section">
-    <h2>Change password</h2>
-    <form method="post" action="/account/password">
-      <input type="hidden" name="username" value="{{.User.Username}}" autocomplete="username">
-      <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
-      <label>New password <input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
-      <label>Confirm new password <input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>
-      <button type="submit" class="primary">Change password</button>
-    </form>
-  </section>
-  <aside class="page-side">
-    <section class="page-section">
-      <h2>Reset account</h2>
-      <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
-      <p><a class="button danger" href="/account/reset">Reset account...</a></p>
-    </section>
-  </aside>
+  {{with .Form}}
+  <div class="page-cols even">
+    <div>
+      <section class="page-section">
+        <h2>Change password</h2>
+        <form method="post" action="/account/password">
+          <input type="hidden" name="username" value="{{$.User.Username}}" autocomplete="username">
+          <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+          <label>New password <input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+          <label>Confirm new password <input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>
+          <button type="submit" class="primary">Change password</button>
+        </form>
+      </section>
+      <section class="page-section">
+        <h2>Signed-in devices</h2>
+        <p>Sign out everywhere except this device, for example after using a shared screen.</p>
+        <form method="post" action="/account/signout"><button type="submit">Sign out other devices</button></form>
+      </section>
+      {{if not $.User.Admin}}
+      <section class="page-section">
+        <h2>Delete account</h2>
+        <p>Permanently deletes your account and homepage. You will be asked for your password.</p>
+        <p><a class="button danger" href="/account/delete">Delete account...</a></p>
+      </section>
+      {{end}}
+    </div>
+    <aside class="page-side">
+      <section class="page-section">
+        <h2>Your homepage</h2>
+        {{if .HasHomepage}}
+        <p>{{.Sections}} section{{if ne .Sections 1}}s{{end}} and {{.Tiles}} tile{{if ne .Tiles 1}}s{{end}}.</p>
+        {{if .Unsaved}}<p class="notice">Edit mode has unsaved changes. Export, and the counts above, only include what you've saved.</p>{{end}}
+        {{else}}
+        <p>You haven't set up a homepage yet.</p>
+        {{end}}
+      </section>
+      <section class="page-section">
+        <h2>Back up and restore</h2>
+        {{if .HasHomepage}}
+        <p>Download your sections, tiles and icons as one file.</p>
+        <p><a class="button" href="/account/export">Export homepage</a></p>
+        {{end}}
+        <form method="post" action="/account/import" enctype="multipart/form-data">
+          <label>Exported file <input name="file" type="file" accept="application/json,.json" required></label>
+          <label class="check"><input type="checkbox" name="confirm" value="1" required> Replace my current homepage and discard any unsaved changes</label>
+          <button type="submit">Import homepage</button>
+        </form>
+      </section>
+      <section class="page-section">
+        <h2>Reset account</h2>
+        <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
+        <p><a class="button danger" href="/account/reset">Reset account...</a></p>
+      </section>
+    </aside>
   </div>
+  {{end}}
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>
 </main>
 {{end}}

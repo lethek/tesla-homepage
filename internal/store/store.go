@@ -142,6 +142,24 @@ func (s *Store) SetPassword(id, passwordHash string) (User, error) {
 	return User{}, ErrNotFound
 }
 
+// SignOutEverywhere increments a User's session version, which invalidates
+// all of their existing sessions.
+func (s *Store) SignOutEverywhere(id string) (User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	users, err := s.users()
+	if err != nil {
+		return User{}, err
+	}
+	for i := range users {
+		if users[i].ID == id {
+			users[i].SessionVersion++
+			return users[i], s.saveUsers(users)
+		}
+	}
+	return User{}, ErrNotFound
+}
+
 // DeleteUser removes a User with their Homepage and Draft, then deletes any
 // icons nothing else references.
 func (s *Store) DeleteUser(id string) error {

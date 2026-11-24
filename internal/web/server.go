@@ -54,7 +54,7 @@ type view struct {
 	Form     any
 }
 
-var pageNames = []string{"home", "edit", "login", "setup", "welcome", "account", "reset", "users", "library"}
+var pageNames = []string{"home", "edit", "login", "setup", "welcome", "account", "reset", "delete", "users", "library"}
 
 func New(st *store.Store, sessions *auth.Sessions, resolver *icons.Resolver, lib *library.Library) (*Server, error) {
 	funcs := template.FuncMap{
@@ -101,6 +101,11 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /account", s.user(s.accountPage))
 	mux.Handle("GET /account/reset", s.user(s.resetForm))
 	mux.Handle("POST /account/reset", s.user(s.resetAccount))
+	mux.Handle("POST /account/signout", s.user(s.signOutOthers))
+	mux.Handle("GET /account/export", s.user(s.exportHomepage))
+	mux.Handle("POST /account/import", s.user(s.importHomepage))
+	mux.Handle("GET /account/delete", s.user(s.deleteAccountForm))
+	mux.Handle("POST /account/delete", s.user(s.deleteAccount))
 	mux.Handle("POST /account/password", s.user(s.changePassword))
 
 	mux.Handle("GET /edit", s.user(s.edit))
@@ -527,10 +532,6 @@ func validateCredentials(username, password, confirm string) string {
 
 // Account
 
-func (s *Server) accountPage(w http.ResponseWriter, r *http.Request, u store.User) {
-	s.render(w, "account", http.StatusOK, view{User: &u})
-}
-
 func (s *Server) resetForm(w http.ResponseWriter, r *http.Request, u store.User) {
 	s.render(w, "reset", http.StatusOK, view{User: &u})
 }
@@ -550,20 +551,20 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, u store.
 	// Someone holding a stolen session could otherwise guess the current password.
 	key := auth.Key("password", u.Username)
 	if !s.admit(w, r, "password change", func(status int, msg string) {
-		s.render(w, "account", status, view{User: &u, Error: msg})
+		s.renderAccount(w, u, status, "", msg)
 	}, auth.Limit{Key: key, Max: guessesPerUser}) {
 		return
 	}
 	if !auth.CheckPassword(u.PasswordHash, r.FormValue("current")) {
 		s.auditFailed(r, "password change failed", "reason", "wrong current password")
-		s.render(w, "account", http.StatusUnprocessableEntity, view{User: &u, Error: "Current password is wrong."})
+		s.renderAccount(w, u, http.StatusUnprocessableEntity, "", "Current password is wrong.")
 		return
 	}
 	s.throttle.Reset(key) // the current password was right
 	password := r.FormValue("password")
 	if msg := validateCredentials(u.Username, password, r.FormValue("confirm")); msg != "" {
 		s.auditFailed(r, "password change failed", "reason", msg)
-		s.render(w, "account", http.StatusUnprocessableEntity, view{User: &u, Error: msg})
+		s.renderAccount(w, u, http.StatusUnprocessableEntity, "", msg)
 		return
 	}
 	hash, err := auth.HashPassword(password)
@@ -579,7 +580,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, u store.
 	s.audit(r, "password changed", "target", u.Username)
 	// Other devices are signed out; keep this one signed in.
 	s.sessions.SetCookie(w, r, u.ID, u.SessionVersion)
-	s.render(w, "account", http.StatusOK, view{User: &u, Message: "Password changed. Other devices have been signed out."})
+	s.renderAccount(w, u, http.StatusOK, "Password changed. Other devices have been signed out.", "")
 }
 
 // Admin

@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- The Manage account page also shows who you are and how many sections and tiles you have, and can sign out other devices, export your homepage with its icons to a file, import such a file (replacing the current homepage and draft), and, for users other than the Admin, delete the account after re-entering the password.
 - The menu's Change password option is now Manage account, a page with the password form and a new Reset account option. Reset account deletes the user's homepage and any draft, after a confirmation page that warns it can't be undone, and returns them to the welcome screen to start empty or from the starter set.
 - The Starter Set's ABC iView, SBS On Demand, 10, 7plus and 9Now tiles use the built-in icons.
 - The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services and fullscreen tiles where they suit.

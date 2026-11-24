@@ -44,13 +44,17 @@ Admins can also add custom icons (name, aliases, tags and an image) from the sam
 
 A few custom icons are also built into the image, from `internal/library/seed/`: ABC iView, SBS On Demand, 10, 7plus and 9Now. They are searched like any other custom icon but are read-only and don't appear on the Icon library page. A custom icon you add with the same name replaces the built-in one.
 
+## Your account
+
+The Manage account page, in the menu, lets each user change their password, sign out their other devices, reset their homepage, and export it to a file. The export holds the sections, tiles and icon images, and importing it into any account replaces that account's homepage and draft. Users other than the Admin can also delete their own account after entering their password. Only the saved homepage is exported, not unsaved Edit mode changes.
+
 ## Guessing protection
 
 Passwords are stored as salted bcrypt hashes, so precomputed (rainbow table) attacks don't apply. Guessing is slowed by lockouts, which are logged as `WARN` lines:
 
 - A username gets 5 sign-in attempts in 15 minutes, and an address gets 20. Each attempt is counted before the password is checked, so a burst of simultaneous guesses can't get more than that far, and a successful sign-in gives its attempt back. The next attempt after the allowance is used up starts a lockout. A locked key gets `429 Too many failed attempts`, even with the right password, until its lockout ends.
 - A lockout lasts 1 minute, then doubles each time the same key is locked again, up to 1 hour. Nothing is locked for good, and a successful sign-in clears the username's count.
-- Wrong guesses of the current password on the Manage account page are limited the same way.
+- Wrong guesses of the current password on the Manage account page, including when deleting an account, are limited the same way.
 - Names that don't exist are counted too, so the lockout doesn't reveal which names are real.
 
 Every spelling of a username that sign-in accepts (any capitalisation, and look-alike letters such as `ſ` for `s`) shares one count. Counts are kept in memory and reset when the server restarts. A person can be locked out for a while by someone guessing their name.

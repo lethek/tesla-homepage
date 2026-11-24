@@ -1,0 +1,18 @@
+{{define "body"}}
+<main class="card">
+  <header class="page-head"><h1>Delete your account?</h1></header>
+  {{template "messages" .}}
+  <p class="error"><strong>This permanently deletes your account and cannot be undone.</strong></p>
+  <ul>
+    <li>Your homepage, with every section and tile, is deleted.</li>
+    <li>You are signed out on every device.</li>
+    <li>The admin would have to create a new account for you to use this app again.</li>
+  </ul>
+  <form method="post" action="/account/delete">
+    <label>Your password <input name="current" type="password" autocomplete="current-password" required></label>
+    <input type="hidden" name="username" value="{{.User.Username}}" autocomplete="username">
+    <button type="submit" class="danger">Yes, delete my account</button>
+  </form>
+  <p class="back"><a class="button" href="/account">Cancel</a></p>
+</main>
+{{end}}
