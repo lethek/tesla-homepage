@@ -64,8 +64,8 @@ func (s *Server) readLocalForm(w http.ResponseWriter, r *http.Request) (name str
 	switch r.FormValue("source") {
 	case "url":
 		raw := strings.TrimSpace(r.FormValue("icon_url"))
-		if !isWebURL(raw) {
-			return "", nil, nil, nil, "", errors.New("the image URL must start with http:// or https://")
+		if !isImageURL(raw) {
+			return "", nil, nil, nil, "", errors.New("the image URL must start with http://, https:// or data:image/")
 		}
 		image, ext, err = s.icons.Fetch(ctx, raw)
 		if err != nil {

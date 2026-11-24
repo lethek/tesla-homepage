@@ -48,9 +48,16 @@ func (r *Resolver) FromUpload(data []byte) (string, error) {
 	return r.Save(data, ext)
 }
 
-// FromURL downloads an image and stores it.
+// FromURL downloads an image and stores it. A base64 data: URL is decoded
+// instead of downloaded.
 func (r *Resolver) FromURL(ctx context.Context, imageURL string) (string, error) {
-	data, err := r.get(ctx, imageURL)
+	var data []byte
+	var err error
+	if IsDataURL(imageURL) {
+		data, err = decodeDataURL(imageURL)
+	} else {
+		data, err = r.get(ctx, imageURL)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +79,12 @@ func (r *Resolver) FromSite(ctx context.Context, siteURL string) string {
 // Fetch downloads an image and returns its bytes and file extension without
 // storing it.
 func (r *Resolver) Fetch(ctx context.Context, imageURL string) (data []byte, ext string, err error) {
-	if data, err = r.get(ctx, imageURL); err != nil {
+	if IsDataURL(imageURL) {
+		data, err = decodeDataURL(imageURL)
+	} else {
+		data, err = r.get(ctx, imageURL)
+	}
+	if err != nil {
 		return nil, "", err
 	}
 	ext, ok := imageExt(data)
@@ -107,7 +119,8 @@ func (r *Resolver) siteCandidates(ctx context.Context, siteURL string) []string 
 	add := func(cs []candidate) {
 		sort.SliceStable(cs, func(i, j int) bool { return cs[i].size > cs[j].size })
 		for _, c := range cs {
-			if u, err := base.Parse(c.href); err == nil {
+			// A page can't hand us a data: URL to store as its icon.
+			if u, err := base.Parse(c.href); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
 				urls = append(urls, u.String())
 			}
 		}

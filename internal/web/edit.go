@@ -411,8 +411,8 @@ func (s *Server) readTileForm(w http.ResponseWriter, r *http.Request, f *tileFor
 		f.Error = "Choose an image to upload."
 	case in.source == "url" && in.iconURL == "":
 		f.Error = "Enter the image's web address."
-	case (in.source == "url" || in.source == "") && in.iconURL != "" && !isWebURL(in.iconURL):
-		f.Error = "The image URL must start with http:// or https://."
+	case (in.source == "url" || in.source == "") && in.iconURL != "" && !isImageURL(in.iconURL):
+		f.Error = "The image URL must start with http://, https:// or data:image/."
 	}
 	if f.Error != "" {
 		s.renderTileForm(w, *f, true)
@@ -549,6 +549,11 @@ func (s *Server) librarySearch(w http.ResponseWriter, r *http.Request, u store.U
 func isWebURL(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+// isImageURL accepts an icon's address: a web address or a data: URL.
+func isImageURL(raw string) bool {
+	return isWebURL(raw) || icons.IsDataURL(raw)
 }
 
 // clip trims s and shortens it to at most n characters.
