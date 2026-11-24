@@ -168,7 +168,7 @@ func (s *Server) renameSection(w http.ResponseWriter, r *http.Request, u store.U
 	title := clip(r.FormValue("title"), 60)
 	s.updateDraft(w, r, u, "section renamed", func(hp *store.Homepage) error {
 		sec := hp.FindSection(r.PathValue("id"))
-		if sec == nil || title == "" {
+		if sec == nil {
 			return errBadRequest
 		}
 		sec.Title = title

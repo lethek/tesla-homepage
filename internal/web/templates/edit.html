@@ -31,7 +31,7 @@
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2"/></svg>
         </span>
         <form hx-post="/edit/sections/{{.ID}}" hx-trigger="change">
-          <input name="title" value="{{.Title}}" maxlength="60" required aria-label="Section title">
+          <input name="title" value="{{.Title}}" maxlength="60" placeholder="Untitled section" aria-label="Section title">
         </form>
         <button type="button" class="danger" hx-post="/edit/sections/{{.ID}}/delete"
           hx-confirm="Delete the section &quot;{{.Title}}&quot; and all its tiles?">Delete section</button>

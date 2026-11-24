@@ -464,3 +464,23 @@ func TestResetAccountReturnsToWelcome(t *testing.T) {
 	// The account itself is untouched.
 	e.login("admin", "password1")
 }
+
+func TestSectionTitleMayBeEmpty(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	e.get(c, "/edit")
+	e.hxPost(c, "/edit/sections", url.Values{"title": {"Named"}})
+	d, _, _ := e.store.Draft(e.adminID())
+	id := d.Sections[0].ID
+
+	if resp, _ := e.hxPost(c, "/edit/sections/"+id, url.Values{"title": {"  "}}); resp.StatusCode != 200 {
+		t.Fatalf("renaming to empty: %d", resp.StatusCode)
+	}
+	if d, _, _ := e.store.Draft(e.adminID()); d.Sections[0].Title != "" {
+		t.Fatalf("title = %q, want empty", d.Sections[0].Title)
+	}
+	e.post(c, "/edit/done", nil)
+	if _, body := e.get(c, "/"); strings.Contains(body, "<h2>") {
+		t.Fatal("home page shows a heading for an untitled section")
+	}
+}

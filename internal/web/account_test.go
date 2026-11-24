@@ -213,3 +213,16 @@ func TestDeleteOwnAccount(t *testing.T) {
 	resp, _ = e.get(bob, "/")
 	wantRedirect(t, resp, "/login")
 }
+
+func TestImportKeepsEmptySectionTitles(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	file := `{"format":"tesla-homepage","version":1,"homepage":{"sections":[{"title":"","tiles":[{"title":"A","url":"https://example.com"}]},{"tiles":[]}]}}`
+	if resp, body := e.importFile(c, file); resp.StatusCode != 200 {
+		t.Fatalf("import: %d %s", resp.StatusCode, body)
+	}
+	got, _, _ := e.store.Homepage(e.adminID())
+	if len(got.Sections) != 2 || got.Sections[0].Title != "" || got.Sections[1].Title != "" {
+		t.Fatalf("imported sections: %+v", got.Sections)
+	}
+}
