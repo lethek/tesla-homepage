@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  // Escape follows the "Back to homepage" button on pages that have one.
+  // Escape follows the page's data-back link: "Back to homepage", or Cancel
+  // on a confirmation page.
   // In Edit mode it cancels, asking first if the Draft has changes. An open
   // dialog takes Escape for itself.
   document.addEventListener("keydown", function (e) {
@@ -9,9 +10,13 @@
     var back = document.querySelector("a[data-back]");
     var cancel = document.querySelector("form[action='/edit/cancel']");
     var editor = document.getElementById("editor");
+    // Claim the key, or the browser treats Escape as "stop loading" and can
+    // cancel the navigation started here.
     if (back) {
+      e.preventDefault();
       location.href = back.href;
     } else if (cancel) {
+      e.preventDefault();
       cancel.requestSubmit(); // runs the confirmation below
     }
   });
