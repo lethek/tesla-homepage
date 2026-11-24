@@ -237,3 +237,14 @@ func TestFormErrorsShowInsideTheirForm(t *testing.T) {
 		t.Fatalf("error at %d, password form at %d, alerts %d", at, form, strings.Count(body, `role="alert"`))
 	}
 }
+
+func TestImportErrorShowsInsideImportForm(t *testing.T) {
+	e := newEnv(t)
+	c := e.signedInAdmin()
+	_, body := e.importFile(c, "not a homepage")
+	at := strings.Index(body, `role="alert"`)
+	form := strings.Index(body, `action="/account/import"`)
+	if at < 0 || at < form || strings.Count(body, `role="alert"`) != 1 {
+		t.Fatalf("error at %d, import form at %d", at, form)
+	}
+}
