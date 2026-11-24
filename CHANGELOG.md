@@ -4,9 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-24
+
 ### Added
 
 - GitHub Releases for each version, with binaries for Linux and Windows (amd64 and arm64), checksums and the changelog as release notes.
+
+### Changed
+
+- First stable release. The application behaves as in 0.3.0. From here, a breaking change to the environment variables, the data files or the URLs bumps the major version.
 
 ## [0.3.0] - 2026-11-24
 
@@ -73,7 +79,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Per-tile Plate background colour and padding (0 to 30%) for any icon.
 - Container image published to GHCR for amd64 and arm64 by GitHub Actions.
 
-[Unreleased]: https://github.com/lethek/tesla-homepage/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/lethek/tesla-homepage/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/lethek/tesla-homepage/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/lethek/tesla-homepage/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/lethek/tesla-homepage/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/lethek/tesla-homepage/compare/v0.1.0...v0.2.0
