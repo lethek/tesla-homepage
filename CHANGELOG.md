@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Changed
 
 - The Starter Set now has Video, Audio, Everyday and Artificial Intelligence sections, with Australian streaming services and fullscreen tiles where they suit.
+- Tiles are about 14% larger, from 64px up to 128px square depending on screen width.
 
 ## [0.2.1] - 2026-11-23
 

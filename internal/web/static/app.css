@@ -6,7 +6,7 @@
   --line: #2c2c2c;
   --accent: #e6176f;
   --danger: #e5484d;
-  --tile: clamp(60px, 7.5vw, 112px);
+  --tile: clamp(64px, 8.5vw, 128px);
   --gap: clamp(10px, 1.3vw, 18px);
   --pad: clamp(10px, 1.6vw, 24px);
   --touch: 48px;
