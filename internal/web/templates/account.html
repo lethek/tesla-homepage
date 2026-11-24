@@ -1,18 +1,25 @@
 {{define "body"}}
-<main class="card">
-  <h1>Manage account</h1>
+<main class="card page">
+  <header class="page-head">
+    <h1>Manage account</h1>
+    <p class="hint">Change your password, or start your homepage again from scratch.</p>
+  </header>
   {{template "messages" .}}
-  <h2>Change password</h2>
-  <form method="post" action="/account/password">
-    <input type="hidden" name="username" value="{{.User.Username}}" autocomplete="username">
-    <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
-    <label>New password <input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
-    <label>Confirm new password <input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>
-    <button type="submit" class="primary">Change password</button>
-  </form>
-  <h2>Reset account</h2>
-  <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
-  <p><a class="button danger" href="/account/reset">Reset account...</a></p>
+  <section class="page-section">
+    <h2>Change password</h2>
+    <form method="post" action="/account/password">
+      <input type="hidden" name="username" value="{{.User.Username}}" autocomplete="username">
+      <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+      <label>New password <input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+      <label>Confirm new password <input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label>
+      <button type="submit" class="primary">Change password</button>
+    </form>
+  </section>
+  <section class="page-section">
+    <h2>Reset account</h2>
+    <p>Deletes your whole homepage and takes you back to the start, where you choose the starter set or an empty homepage again. You will be asked to confirm.</p>
+    <p><a class="button danger" href="/account/reset">Reset account...</a></p>
+  </section>
   <p class="back"><a class="button" data-back href="/">Back to homepage</a></p>
 </main>
 {{end}}

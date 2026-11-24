@@ -1,13 +1,13 @@
 {{define "body"}}
-<main class="card library">
-  <header class="lib-head">
+<main class="card page">
+  <header class="page-head">
     <h1>Icon library</h1>
     <p class="hint">Ready-made icons for Tiles, from the catalogues and from your own uploads. Both are searched together.</p>
   </header>
   {{template "messages" .}}
   {{with .Form}}
   <div class="lib-layout">
-    <section class="lib-custom">
+    <section class="page-section lib-custom">
       <h2>Custom icons</h2>
       <p class="hint">Only custom icons can be edited or deleted. Refreshing the catalogues never touches them.</p>
       <ul class="lib-grid">
@@ -19,7 +19,7 @@
     </section>
 
     <aside class="lib-side">
-      <section>
+      <section class="page-section">
         <h2>Catalogues</h2>
         {{if .Cached}}
         <p class="hint">Downloaded {{.Fetched.Format "2 January 2006, 15:04 MST"}}.</p>
@@ -33,7 +33,7 @@
           <button type="submit" class="primary">Refresh now</button>
         </form>
       </section>
-      <section>
+      <section class="page-section">
         <h2>Sources and licences</h2>
         {{template "icon-credits"}}
       </section>
