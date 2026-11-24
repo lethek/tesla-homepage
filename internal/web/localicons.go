@@ -3,7 +3,10 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -145,4 +148,136 @@ func (s *Server) deleteLocalIcon(w http.ResponseWriter, r *http.Request, u store
 	}
 	s.audit(r, "custom icon deleted", "slug", r.PathValue("slug"))
 	redirect(w, r, "/admin/library?done=deleted")
+}
+
+// Export and import
+
+const (
+	iconsExportFormat = "tesla-homepage-icons"
+	maxImportIcons    = 500
+	maxIconWords      = 20
+)
+
+// iconsExport is the file the Admin downloads: every custom icon with its
+// image, so the set can be restored on another install.
+type iconsExport struct {
+	Format  string       `json:"format"`
+	Version int          `json:"version"`
+	Icons   []iconExport `json:"icons"`
+}
+
+type iconExport struct {
+	Slug    string   `json:"slug"`
+	Name    string   `json:"name"`
+	Aliases []string `json:"aliases,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
+	Image   string   `json:"image"` // base64
+}
+
+func (s *Server) exportLocalIcons(w http.ResponseWriter, r *http.Request, _ store.User) {
+	brands, err := s.library.LocalIcons()
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	out := iconsExport{Format: iconsExportFormat, Version: exportVersion, Icons: []iconExport{}}
+	for _, b := range brands {
+		data, _, ok := s.library.LocalImage(b.Slug)
+		if !ok {
+			continue
+		}
+		out.Icons = append(out.Icons, iconExport{
+			Slug: b.Slug, Name: b.Name, Aliases: b.Aliases, Tags: b.Tags,
+			Image: base64.StdEncoding.EncodeToString(data),
+		})
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.audit(r, "custom icons exported", "icons", len(out.Icons))
+	h := w.Header()
+	h.Set("Content-Type", "application/json")
+	h.Set("Content-Disposition", `attachment; filename="icons-`+time.Now().UTC().Format("2006-01-02-150405")+`Z.json"`)
+	h.Set("Cache-Control", "no-store")
+	w.Write(b)
+}
+
+// importLocalIcons adds the icons in an exported file. An icon with the same
+// slug as an existing one replaces it, and other icons are left alone.
+func (s *Server) importLocalIcons(w http.ResponseWriter, r *http.Request, u store.User) {
+	fail := func(status int, msg string) {
+		s.auditFailed(r, "custom icon import failed", "reason", msg)
+		s.renderLibraryBackup(w, u, status, "", msg, true)
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxImportBytes+1<<20)
+	if err := r.ParseMultipartForm(maxImportBytes); err != nil {
+		fail(http.StatusRequestEntityTooLarge, "The file is too large.")
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		fail(http.StatusBadRequest, "Choose an exported icons file.")
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxImportBytes+1))
+	if err != nil || len(data) > maxImportBytes {
+		fail(http.StatusRequestEntityTooLarge, "The file is too large.")
+		return
+	}
+	var in iconsExport
+	if json.Unmarshal(data, &in) != nil || in.Format != iconsExportFormat {
+		fail(http.StatusUnprocessableEntity, "That isn't an icons file exported from this app.")
+		return
+	}
+	if in.Version != exportVersion {
+		fail(http.StatusUnprocessableEntity, "This file was exported by a different version and can't be imported.")
+		return
+	}
+	if len(in.Icons) > maxImportIcons {
+		fail(http.StatusUnprocessableEntity, fmt.Sprintf("The file has more than %d icons.", maxImportIcons))
+		return
+	}
+	added, skipped := 0, 0
+	for _, ic := range in.Icons {
+		image, err := base64.StdEncoding.DecodeString(ic.Image)
+		if err != nil || len(image) > icons.MaxSize {
+			skipped++
+			continue
+		}
+		ext, err := icons.Check(image)
+		if err != nil {
+			skipped++
+			continue
+		}
+		if _, err := s.library.PutLocal(ic.Slug, clip(ic.Name, 40), words(ic.Aliases), words(ic.Tags), image, ext); err != nil {
+			skipped++
+			continue
+		}
+		added++
+	}
+	s.audit(r, "custom icons imported", "added", added, "skipped", skipped)
+	if added == 0 && skipped > 0 {
+		fail(http.StatusUnprocessableEntity, "None of the icons in that file could be used.")
+		return
+	}
+	msg := "Imported " + plural(added, "icon") + "."
+	if skipped > 0 {
+		msg += " " + plural(skipped, "icon") + " couldn't be used and were skipped."
+	}
+	s.renderLibrary(w, u, http.StatusOK, msg, "")
+}
+
+// words limits a list of aliases or tags from an imported file.
+func words(in []string) []string {
+	if len(in) > maxIconWords {
+		in = in[:maxIconWords]
+	}
+	out := make([]string, len(in))
+	for i, w := range in {
+		out[i] = clip(w, 40)
+	}
+	return out
 }

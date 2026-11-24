@@ -150,6 +150,23 @@ func (l *Library) LocalBytes(id string) ([]byte, error) {
 // are the new image and its file extension, and may be empty when changing.
 // Image bytes must already have been checked by the caller.
 func (l *Library) SaveLocal(slug, name string, aliases, tags []string, image []byte, ext string) (Brand, error) {
+	return l.save(slug, name, aliases, tags, image, ext, false)
+}
+
+// PutLocal adds the custom icon with the given slug, or replaces it if it
+// exists. It is for restoring an export, so the slug is kept and an image is
+// required.
+func (l *Library) PutLocal(slug, name string, aliases, tags []string, image []byte, ext string) (Brand, error) {
+	if !slugPattern.MatchString(slug) {
+		return Brand{}, ErrLocalName
+	}
+	if len(image) == 0 {
+		return Brand{}, ErrLocalImage
+	}
+	return l.save(slug, name, aliases, tags, image, ext, true)
+}
+
+func (l *Library) save(slug, name string, aliases, tags []string, image []byte, ext string, upsert bool) (Brand, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > 40 {
 		return Brand{}, ErrLocalName
@@ -174,7 +191,7 @@ func (l *Library) SaveLocal(slug, name string, aliases, tags []string, image []b
 		if len(image) == 0 {
 			return Brand{}, ErrLocalImage
 		}
-	} else if at < 0 {
+	} else if at < 0 && !upsert {
 		return Brand{}, ErrLocalNotFound
 	}
 	b := Brand{Name: name, Slug: slug, Aliases: clean(aliases), Tags: clean(tags), Variants: []string{""}}

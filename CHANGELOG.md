@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - The Image URL field (on tiles and custom icons) accepts base64 `data:image/...` URLs. They are decoded locally, with no download, and checked like an upload.
+- Export and import of custom icons, tucked away under "Export or import" on the Icon library page. The export is one file with every custom icon and its image. Importing it adds the icons and replaces any with the same slug.
 - Custom icons built into the image (ABC iView, SBS On Demand, 10, 7plus, 9Now). They are searchable and read-only, and an Admin's custom icon with the same slug replaces them.
 - Manage account page, which replaces Change password in the menu. It shows who you are and how many sections and tiles you have, and lets you change your password, sign out other devices, export your homepage with its icons to a file, import such a file, and reset your homepage back to the welcome screen. Users other than the Admin can also delete their account after re-entering their password. Reset and delete ask for confirmation first, and Escape cancels the reset and delete confirmation pages.
 

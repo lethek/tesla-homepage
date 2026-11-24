@@ -330,3 +330,10 @@ label.dropzone:hover, label.dropzone.dragging { border-color: var(--accent); col
 label.dropzone:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dropzone-file { color: var(--fg); font-weight: 600; word-break: break-all; }
 .dropzone.has-file .dropzone-text { display: none; }
+
+/* Icon library: export and import, collapsed until needed */
+.lib-backup { margin-top: 20px; }
+.lib-backup > summary { cursor: pointer; color: var(--muted, #8a8f98); width: fit-content; }
+.lib-backup > summary:hover, .lib-backup[open] > summary { color: inherit; }
+.lib-backup form { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.lib-backup-actions { margin: 12px 0; }

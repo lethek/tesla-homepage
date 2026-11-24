@@ -129,6 +129,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/users/{id}/delete", s.admin(s.deleteUser))
 	mux.Handle("GET /admin/library", s.admin(s.libraryPage))
 	mux.Handle("POST /admin/library/refresh", s.admin(s.refreshLibrary))
+	mux.Handle("GET /admin/library/export", s.admin(s.exportLocalIcons))
+	mux.Handle("POST /admin/library/import", s.admin(s.importLocalIcons))
 	mux.Handle("POST /admin/library/local", s.admin(s.saveLocalIcon))
 	mux.Handle("POST /admin/library/local/{slug}", s.admin(s.saveLocalIcon))
 	mux.Handle("POST /admin/library/local/{slug}/delete", s.admin(s.deleteLocalIcon))
@@ -343,6 +345,7 @@ type libraryStatus struct {
 	Counts  []library.Count
 	Local   []localIcon
 	New     localIcon // the blank form for adding
+	Backup  bool      // show the export and import panel expanded
 }
 
 func (s *Server) libraryPage(w http.ResponseWriter, r *http.Request, u store.User) {
@@ -359,12 +362,18 @@ func (s *Server) libraryPage(w http.ResponseWriter, r *http.Request, u store.Use
 }
 
 func (s *Server) renderLibrary(w http.ResponseWriter, u store.User, status int, msg, errMsg string) {
+	s.renderLibraryBackup(w, u, status, msg, errMsg, false)
+}
+
+// renderLibraryBackup renders the page, optionally with the export and import
+// panel expanded so a failed import shows its form again.
+func (s *Server) renderLibraryBackup(w http.ResponseWriter, u store.User, status int, msg, errMsg string, backup bool) {
 	cat, ok, err := s.library.Cached()
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	st := libraryStatus{Cached: ok}
+	st := libraryStatus{Cached: ok, Backup: backup}
 	if ok {
 		st.Fetched, st.Counts = cat.Fetched, cat.Counts()
 	}

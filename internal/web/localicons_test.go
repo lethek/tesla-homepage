@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"encoding/base64"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -220,4 +221,80 @@ func TestCustomIconFromURLAndSite(t *testing.T) {
 	if meta, _ := os.ReadFile(e.store.LocalLibraryPath()); strings.Count(string(meta), `"s":`) != 1 {
 		t.Fatalf("failed adds left icons behind: %s", meta)
 	}
+}
+
+func TestCustomIconsExportAndImport(t *testing.T) {
+	e := newEnv(t)
+	admin := e.signedInAdmin()
+	e.localForm(admin, "/admin/library/local", "Home NAS", "storage box", "Homelab", pngHeader+"A")
+	e.localForm(admin, "/admin/library/local", "Router", "", "", pngHeader+"B")
+
+	resp, exported := e.get(admin, "/admin/library/export")
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Disposition"), `filename="icons-`) {
+		t.Fatalf("export: %d %q", resp.StatusCode, resp.Header.Get("Content-Disposition"))
+	}
+
+	// Restoring after deletion brings every icon back, with its details.
+	e.post(admin, "/admin/library/local/home-nas/delete", nil)
+	e.post(admin, "/admin/library/local/router/delete", nil)
+	resp, body := e.importIcons(admin, exported)
+	if resp.StatusCode != 200 || !strings.Contains(body, "Imported 2 icons.") {
+		t.Fatalf("import: %d", resp.StatusCode)
+	}
+	if _, page := e.get(admin, "/admin/library"); !strings.Contains(page, "Home NAS") || !strings.Contains(page, "storage box") {
+		t.Fatal("restored icon or its details are missing")
+	}
+
+	// Importing again replaces icons with the same slug rather than failing.
+	if resp, body := e.importIcons(admin, exported); resp.StatusCode != 200 || !strings.Contains(body, "Imported 2 icons.") {
+		t.Fatalf("re-import: %d", resp.StatusCode)
+	}
+}
+
+func TestCustomIconsImportRejectsBadInput(t *testing.T) {
+	e := newEnv(t)
+	admin := e.signedInAdmin()
+	good := base64.StdEncoding.EncodeToString([]byte(pngHeader))
+	bad := base64.StdEncoding.EncodeToString([]byte("<html>hi</html>"))
+	for name, tc := range map[string]struct {
+		file   string
+		status int
+		want   string
+	}{
+		"not json":      {"hello", 422, "an icons file exported"},
+		"wrong format":  {`{"format":"tesla-homepage","version":1}`, 422, "an icons file exported"},
+		"wrong version": {`{"format":"tesla-homepage-icons","version":9}`, 422, "different version"},
+		"no usable icons": {`{"format":"tesla-homepage-icons","version":1,"icons":[` +
+			`{"slug":"a","name":"A","image":"` + bad + `"},{"slug":"../x","name":"X","image":"` + good + `"}]}`, 422, "None of the icons"},
+	} {
+		resp, body := e.importIcons(admin, tc.file)
+		if resp.StatusCode != tc.status || !strings.Contains(body, tc.want) {
+			t.Errorf("%s: %d, want %d containing %q", name, resp.StatusCode, tc.status, tc.want)
+		}
+	}
+	// A mix imports what it can and reports the rest.
+	file := `{"format":"tesla-homepage-icons","version":1,"icons":[` +
+		`{"slug":"ok","name":"Ok","image":"` + good + `"},{"slug":"bad","name":"Bad","image":"` + bad + `"}]}`
+	if resp, body := e.importIcons(admin, file); resp.StatusCode != 200 || !strings.Contains(body, "Imported 1 icon.") || !strings.Contains(body, "1 icon couldn") {
+		t.Fatalf("mixed import: %d", resp.StatusCode)
+	}
+	// Only Admins may import or export.
+	e.post(admin, "/admin/users", url.Values{"username": {"bob"}, "password": {"bobpassword"}})
+	bob := e.login("bob", "bobpassword")
+	if resp, _ := e.get(bob, "/admin/library/export"); resp.StatusCode == 200 {
+		t.Fatal("a non-admin exported icons")
+	}
+	if resp, _ := e.importIcons(bob, "{}"); resp.StatusCode == 200 {
+		t.Fatal("a non-admin imported icons")
+	}
+}
+
+func (e *env) importIcons(c *http.Client, content string) (*http.Response, string) {
+	e.t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, _ := mw.CreateFormFile("file", "icons.json")
+	fw.Write([]byte(content))
+	mw.Close()
+	return e.do(c, http.MethodPost, "/admin/library/import", &buf, mw.FormDataContentType(), false)
 }
