@@ -41,9 +41,9 @@ func New(save Saver, allow []netip.Prefix) *Resolver {
 
 // FromUpload validates and stores uploaded icon data.
 func (r *Resolver) FromUpload(data []byte) (string, error) {
-	ext, ok := imageExt(data)
-	if !ok {
-		return "", ErrNotImage
+	ext, err := Check(data)
+	if err != nil {
+		return "", err
 	}
 	return r.Save(data, ext)
 }
@@ -87,9 +87,9 @@ func (r *Resolver) Fetch(ctx context.Context, imageURL string) (data []byte, ext
 	if err != nil {
 		return nil, "", err
 	}
-	ext, ok := imageExt(data)
-	if !ok {
-		return nil, "", ErrNotImage
+	ext, err = Check(data)
+	if err != nil {
+		return nil, "", err
 	}
 	return data, ext, nil
 }
@@ -228,10 +228,6 @@ func parseSize(s string) int {
 	n, _ := strconv.Atoi(w)
 	return n
 }
-
-// Ext returns the file extension for a supported image type. ok is false for
-// anything else.
-func Ext(data []byte) (ext string, ok bool) { return imageExt(data) }
 
 // imageExt sniffs data and returns the file extension for a supported image type.
 func imageExt(data []byte) (string, bool) {

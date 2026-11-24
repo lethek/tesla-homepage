@@ -25,7 +25,9 @@ Anyone who can edit a tile can make the server download an image from an address
 
 If your tiles point at internal services and you want their icons fetched with From site, list those networks in `ICON_ALLOWED_NETWORKS`, for example `192.168.1.0/24,10.0.0.5`. Everything listed becomes reachable by every user who can edit a tile, so keep the list narrow.
 
-The Image URL field also takes a base64 `data:image/...;base64,` URL. It is decoded in the server without any download, so the checks above don't apply, and it is held to the same limits as an upload: at most 2 MB once decoded, and the bytes must be a PNG, JPEG, GIF, WebP, SVG or ICO whatever the URL claims. Other `data:` forms, such as percent-encoded SVG, are refused. A page can't name a `data:` URL as its own icon for From site.
+The Image URL field also takes a base64 `data:image/...;base64,` URL. It is decoded in the server without any download, so the checks above don't apply, and it is held to the same limits as an upload: at most 2 MB once decoded, and the bytes must be a PNG, JPEG, GIF, WebP, SVG or ICO whatever the URL claims. Other `data:` forms, such as percent-encoded SVG, are refused.
+
+Every image, whether uploaded, downloaded, decoded from a `data:` URL or imported, is decoded in full before it is stored, so truncated or damaged files are refused with a message instead of being saved as broken icons. Images over 16 megapixels are refused, and GIFs are checked on their first frame. Animated WebPs and ICOs are checked for structure, since there is no decoder for them, and SVGs must be well-formed XML with an `svg` root element. A page can't name a `data:` URL as its own icon for From site.
 
 ## Icon library
 

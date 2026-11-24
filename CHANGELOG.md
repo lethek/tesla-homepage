@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- Damaged, truncated or oversize (over 16 megapixels) images are refused when uploaded, downloaded, decoded from a `data:` URL or imported, instead of being saved as broken icons.
 - Escape sometimes had to be pressed more than once before it left a page.
 
 ## [0.2.1] - 2026-11-23

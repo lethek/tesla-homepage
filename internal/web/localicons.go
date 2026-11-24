@@ -91,9 +91,8 @@ func (s *Server) readLocalForm(w http.ResponseWriter, r *http.Request) (name str
 		if ferr != nil || len(image) > icons.MaxSize {
 			return "", nil, nil, nil, "", errTooLarge
 		}
-		var ok bool
-		if ext, ok = icons.Ext(image); !ok {
-			return "", nil, nil, nil, "", icons.ErrNotImage
+		if ext, ferr = icons.Check(image); ferr != nil {
+			return "", nil, nil, nil, "", ferr
 		}
 	}
 	return name, aliases, tags, image, ext, nil

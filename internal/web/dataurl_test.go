@@ -14,7 +14,7 @@ func TestTileIconFromDataURL(t *testing.T) {
 	e.hxPost(c, "/edit/sections", url.Values{"title": {"S"}})
 	sid, _, _ := e.draftTile()
 
-	png := "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+	png := pngHeader
 	good := "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte(png))
 	e.hxPost(c, "/edit/sections/"+sid+"/tiles", url.Values{
 		"title": {"A"}, "url": {"https://example.com"}, "source": {"url"}, "icon_url": {good},

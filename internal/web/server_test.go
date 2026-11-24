@@ -2,6 +2,8 @@ package web
 
 import (
 	"bytes"
+	"image"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -56,7 +58,15 @@ func newEnv(t *testing.T) *env {
 	return &env{t: t, srv: srv, store: st, server: s}
 }
 
-const pngHeader = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+// pngHeader is a real 1x1 PNG. Bytes after its end are ignored by decoders,
+// so tests append markers to tell copies apart.
+var pngHeader = string(tinyPNG())
+
+func tinyPNG() []byte {
+	var b bytes.Buffer
+	png.Encode(&b, image.NewRGBA(image.Rect(0, 0, 1, 1)))
+	return b.Bytes()
+}
 
 // siteIconRequests counts requests for a site's own icon.
 var siteIconRequests atomic.Int32
@@ -305,7 +315,7 @@ func TestTiles(t *testing.T) {
 	mw.WriteField("title", "Example")
 	mw.WriteField("url", "https://example.com")
 	fw, _ := mw.CreateFormFile("icon_file", "icon.png")
-	fw.Write([]byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"))
+	fw.Write([]byte(pngHeader))
 	mw.Close()
 	resp, body = e.do(c, http.MethodPost, "/edit/sections/"+sid+"/tiles", &buf, mw.FormDataContentType(), true)
 	if resp.StatusCode != 200 || !strings.Contains(body, "Example") || !strings.Contains(body, `src="/icons/`) {

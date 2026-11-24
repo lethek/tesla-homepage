@@ -1,13 +1,24 @@
 package icons
 
 import (
+	"bytes"
 	"context"
+	"image"
+	imgpng "image/png"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-var png = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+func tinyPNG() []byte {
+	var b bytes.Buffer
+	imgpng.Encode(&b, image.NewRGBA(image.Rect(0, 0, 1, 1)))
+	return b.Bytes()
+}
+
+// png is a real 1x1 PNG. Bytes after its end are ignored by decoders, so tests
+// append markers to tell copies apart.
+var png = tinyPNG()
 
 func newResolver(t *testing.T) (*Resolver, map[string][]byte) {
 	saved := map[string][]byte{}
